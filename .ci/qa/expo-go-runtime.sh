@@ -49,7 +49,7 @@ adb install "$APK"
 adb shell dumpsys package host.exp.exponent | grep -E 'versionName=|versionCode=' | tee "$OUT/expo-go-installed.txt"
 pnpm --dir apps/mobile exec expo config --type public --json > "$OUT/expo-config.json"
 node -e "const c=require('./runtime-evidence/expo-config.json'); if(c.android?.package) throw new Error('The proof must not assign an Android app identity'); console.log('SDK',c.sdkVersion,'android.package remains unset');"
-EXPO_UNSTABLE_HEADLESS=1 EXPO_OFFLINE=1 NODE_OPTIONS=--dns-result-order=ipv4first pnpm --dir apps/mobile exec expo start --go --localhost --port 8081 > "$OUT/metro.log" 2>&1 &
+EXPO_UNSTABLE_HEADLESS=1 NODE_OPTIONS=--dns-result-order=ipv4first pnpm --dir apps/mobile exec expo start --go --localhost --port 8081 > "$OUT/metro.log" 2>&1 &
 METRO_PID=$!
 export METRO_PID
 timeout 180 bash -c 'until curl --max-time 5 --fail --silent http://127.0.0.1:8081/status | grep -q packager-status:running; do kill -0 "$METRO_PID" || exit 1; sleep 2; done'

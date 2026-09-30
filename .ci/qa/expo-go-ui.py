@@ -1,6 +1,7 @@
 import re
 import subprocess
 import sys
+from pathlib import Path
 import xml.etree.ElementTree as ET
 
 action, path = sys.argv[1:]
@@ -18,9 +19,16 @@ def tap(node):
     subprocess.run(['adb', 'shell', 'input', 'tap', str((left+right)//2), str((top+bottom)//2)], check=True)
 
 if action == 'onboarding':
+    visible = ' '.join(map(text, nodes))
     for node in nodes:
-        if text(node) in {'Got it'}:
-            print('Dismissing Expo Go tutorial:', text(node))
+        observed = {text(node), node.attrib.get('text', ''), node.attrib.get('content-desc', '')}
+        tutorial_continue = 'This is the developer menu.' in visible and 'Continue' in observed
+        if tutorial_continue or 'Got it' in observed:
+            if tutorial_continue:
+                shot = Path(path).parent / '00-expo-go-tutorial.png'
+                if not shot.exists():
+                    shot.write_bytes(subprocess.check_output(['adb', 'exec-out', 'screencap', '-p']))
+            print('Dismissing the observed Expo Go tutorial:', text(node))
             tap(node)
             break
 elif action == 'tap-home':
