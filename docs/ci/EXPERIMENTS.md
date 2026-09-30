@@ -336,3 +336,22 @@ is required`. Repository Contracts and CI Success both failed. Static and Tests
 were skipped before any inherited runner could be requested. This is the
 expected policy failure, not an accepted regression. The following commit
 restores the explicit override and requires a new exact-head green run.
+
+**Addendum (2026-09-30):** Restored head
+`bbdba2171dac996f951257f555f0137923b237da` passed
+[36746315794](https://github.com/12-apps/future-gym/actions/runs/36746315794).
+All 10 executed jobs reported the `GitHub Actions` runner group and
+`ubuntu-latest`; 6 correctly skipped jobs requested no runner. This also corrects
+the baseline tally above: run 36736863609 had 10 executed and 6 skipped jobs,
+not 11 and 5. The hosting conclusion is unchanged.
+
+The restored run executed 43/43 root cases (652.4 ms) and passed native lint/types.
+Unit tests were uncached: 4/4 native cases, 13.925 s Jest / 14.785 s task time,
+with the shared JUnit guard confirming 4 executed cases. Android build was also
+uncached: 1,250 modules in 20,166 ms, 23.104 s task time and a verified
+2,690,424-byte Hermes bundle. CI Success passed. The omitted-override probe is
+absent, and all three reusable calls now consume the released runner input.
+Post-merge regeneration's three runner selections are source-verified against
+the same release; its existing missing-token blocker means regeneration execution
+is not claimed. Android identity/device acceptance remains separate, so the app
+PR stays a draft and no app merge, APK install or AWS infrastructure is claimed.
