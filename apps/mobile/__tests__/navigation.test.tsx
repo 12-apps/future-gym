@@ -11,4 +11,5 @@ it("boots the real router into the native foundation route", async () => {
   }, { initialUrl: "/" });
   expect(await screen.findByTestId("gym-foundation")).toBeOnTheScreen();
   expect(router.getPathname()).toBe("/");
+  expect(screen.getByText("Início")).toBeOnTheScreen();
 });

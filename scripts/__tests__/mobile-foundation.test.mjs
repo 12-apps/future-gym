@@ -34,6 +34,7 @@ test("production source composes shared UI and preserves the approved native sta
   for (const name of ["react-native", "react-native-*", "@mui/*", "@emotion/*", "@12-apps/ui/mui/*", "expo-image", "expo-linear-gradient", "expo-blur", "expo-symbols", "@expo/vector-icons"]) assert.ok(rules.includes(`"${name}"`), name);
   const providers = read("apps/mobile/src/providers.tsx");
   assert.match(providers, /<UiProvider>/); assert.match(providers, /<LocaleProvider locale=\{DEFAULT_LOCALE\}>/);
+  assert.match(read("apps/mobile/app/(tabs)/_layout.tsx"), /useLocaleCopy\(FOUNDATION_COPY\)/);
 });
 
 
