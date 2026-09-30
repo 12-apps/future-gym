@@ -22,6 +22,7 @@ Append-only. Every CI experiment, measurement and outcome in this repository, wi
 | --- | --- |
 | E-001 | Post-merge regeneration (ADR index) |
 | E-002 | Pull-request gate `ci-success`: the documentation rule and the ADR record check |
+| E-003 | Pipeline on the engine: `static` + `tests` from 12-apps/ci, `ci-success` aggregating them |
 
 ## Entries
 
@@ -106,3 +107,40 @@ The first GitHub run is the PR that adds the workflow (12-apps/future-gym#1).
 - **The run:** run 36707315755 (job 109860525317, `ubuntu-latest`, git 2.55.0) passed 17/17 tests.
 - **The gate's own line:** `[ci-change-documented] base: merge parent (the base tip this run merged into) · 44 changed path(s) · 2 entries in docs/ci/EXPERIMENTS.md` then `ok`, followed by `[adr-index] records ok`.
 - **Still owed:** a follow-up PR that changes a workflow with no entry here, to watch `ci-success` go red on GitHub, not only in the CLI test.
+
+### E-003 — Pipeline on the engine: do 12-apps/ci's `monorepo-static` and `monorepo-tests` run green on a repository with no workspaces yet?
+
+**Status:** Open — 2026-09-30
+
+**Question:** Can `.github/workflows/ci.yml` call the engine tiers exactly as `12-apps/future-pay` and `12-apps/base-app` do, before `apps/mobile` exists, without either tier failing or reporting work it did not do?
+- `static` is `12-apps/ci/.github/workflows/monorepo-static.yml@v2`.
+- `tests` is `monorepo-tests.yml@v2`.
+- `ci-success` aggregates both and runs the root suite, as future-pay runs `ci-root-suite.mjs` in its own `ci-success`.
+
+**Method:**
+- The engine's tiers are pnpm + turbo (a frozen-lockfile install, then turbo's lint, check-types and test tasks), so the repository root became a monorepo on base-app's conventions:
+  - `package.json` with `packageManager: pnpm@10.34.5` (future-pay's) and exact pins `@12-apps/eslint-config@1.22.0` and `@12-apps/typescript-config@1.21.0` (future-pay's catalog);
+  - `pnpm-workspace.yaml` (`apps/*`, `packages/*`), `turbo.json` and `tsconfig.base.json` (base-app's);
+  - a committed `pnpm-lock.yaml`.
+- Both engine tiers use `stack-aware: true`, like base-app.
+- The hand-rolled single job from E-002 moved into `ci-success`, after the aggregation step.
+
+**Result:** Measured locally:
+- The frozen-lockfile install passes.
+- Turbo's lint, check-types and test tasks exit 0 with `Tasks: 0 successful, 0 total` ("No tasks were executed"), because there is no workspace yet.
+- The script suite passes 17/17.
+
+The first GitHub run is the push that adds this to 12-apps/future-gym#1.
+
+**Why:** Zero turbo tasks is the honest state until story 0 of GYM-1 adds `apps/mobile`. The zero-test guard in `monorepo-tests` is opt-in (`unit-junit-reports`) and not set here. So a green `tests` tier means nothing ran, and it is not evidence of coverage until a workspace exists.
+
+**Evidence:**
+- `.github/workflows/ci.yml`
+- `package.json`
+- `pnpm-lock.yaml`
+- The engine's declared inputs, from `monorepo-static.yml` and `monorepo-tests.yml` at `v2`.
+
+**Regression watch:**
+- **Aggregation:** `ci-success` lists every tier in `needs` (a failed `static` skips `tests`, and a skip is not a failure).
+- **Tier inputs:** the `with:` keys stay within the engine's declared inputs.
+- **Zero tasks:** once `apps/mobile` lands, a `tests` run reporting 0 tasks is a regression. Set `unit-junit-reports` then, so the zero-test guard arms.

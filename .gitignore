@@ -8,3 +8,13 @@
 !.workflow/synapsys/
 # Install state, not content: `updatedAt` is rewritten on every plugin update.
 .workflow/synapsys/.version.json
+
+# pnpm + turbo monorepo
+node_modules/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+*.log
+.env
+.env.local
