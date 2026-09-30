@@ -1,0 +1,102 @@
+name: CI
+
+# The pull-request pipeline, built the way 12-apps/future-pay and
+# 12-apps/base-app build theirs: the ENGINE (12-apps/ci) owns the tiers, this
+# repository owns what is specific to it (memory `ci-engine-or-consumer`).
+#
+#   static    → 12-apps/ci monorepo-static.yml@v2: change filter, turbo
+#               lint/type-check --affected, actionlint.
+#   tests     → 12-apps/ci monorepo-tests.yml@v2: turbo unit tests + build.
+#   ci-success→ the ONLY check a branch rule requires. It aggregates the tiers
+#               and runs this repository's root suite, the same place
+#               future-pay runs its own (`ci-root-suite.mjs` in `ci-success`).
+#
+# Every change to this file lands with an entry in docs/ci/EXPERIMENTS.md
+# (docs/adr/every-ci-change-is-documented.md).
+
+on:
+  pull_request:
+    branches: [main]
+  # Post-merge full run: every PR lane is incremental (paths filter, turbo
+  # --affected); on push the shared pipeline runs everything.
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Reusable workflows cannot define workflow-level concurrency; the caller must.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  static:
+    name: Static
+    # A caller must grant a SUPERSET of what the reusable workflow's jobs
+    # declare, or the whole run dies at startup with no job at all (run
+    # 36707818061, E-003). monorepo-static's retry gate declares
+    # `actions: read`; future-pay grants it for the same reason.
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter reads the PR's file list
+      actions: read
+    uses: 12-apps/ci/.github/workflows/monorepo-static.yml@v2
+    with:
+      # On a stacked PR, select against the STACK's base, not the layer below
+      # (memory `pr-stacking-rules`). Inert off a stack.
+      stack-aware: true
+
+  tests:
+    name: Tests
+    needs: static
+    if: needs.static.outputs.code == 'true'
+    permissions:
+      contents: read
+    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@v2
+    with:
+      # Must match the static tier: a stack-aware gate feeding a stack-blind
+      # test tier reports green having tested less.
+      stack-aware: true
+
+  # Require ONLY this job in the branch ruleset.
+  #
+  # `static` is listed even though `tests` depends on it: if static FAILS, its
+  # dependents go `skipped`, not `failure`, and an aggregation watching only the
+  # dependents would pass with nothing run.
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [static, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Verify no required job failed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "job results: $RESULTS"
+          if printf '%s' "$RESULTS" | grep -qwE 'failure|cancelled'; then
+            echo "::error::A required CI job failed or was cancelled."
+            exit 1
+          fi
+      # The root suite: Node builtins only, no install.
+      - uses: actions/checkout@v4
+        with:
+          # Depth 1 on purpose: the documentation gate reaches the merge
+          # commit's first parent itself (E-002).
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Script tests
+        run: node --test "scripts/__tests__/*.test.mjs"
+      - name: Every CI change is documented
+        run: node scripts/ci/ci-change-documented.mjs
+      - name: ADR records are well formed
+        run: node scripts/adr/render-index.mjs --records

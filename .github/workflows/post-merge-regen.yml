@@ -1,0 +1,40 @@
+name: Post-merge regeneration
+
+# Everything this repository derives AFTER a merge, landed as ONE auto-merged
+# PR that starts no workflow on main. The mechanism is 12-apps/ci's
+# post-merge-regen.yml (prepare → generate → land), the same one
+# 12-apps/future-pay uses; WHAT is derived is scripts/post-merge-regen.mjs,
+# today the ADR index in docs/adr/README.md, which no pull request writes.
+#
+# `push: main`: every merge can land a record to index. A regen merge itself
+# starts nothing (auto-merge is enabled with GITHUB_TOKEN), so there is no loop.
+# `workflow_dispatch`: run it sooner without waiting for the next merge.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  regen:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@v2
+    with:
+      command: node scripts/post-merge-regen.mjs
+      title: 'chore(docs): regenerate the ADR index'
+      # A literal block, never `>-`: the body becomes the commit body line for line.
+      body: |
+        Generated after the merge by scripts/post-merge-regen.mjs.
+        The docs/adr/README.md index is re-rendered from the records.
+      # Only what the command may write; anything else turns the run red.
+      allow-paths: |
+        docs/adr/README.md
+      # The push is made as the PAT's user, so the commit is authored by that same account.
+      commit-author: 'thomfilg <648890+thomfilg@users.noreply.github.com>'
+    secrets:
+      PR_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
