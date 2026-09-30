@@ -1,0 +1,45 @@
+name: CI
+
+# The pull-request gate. One job, `ci-success`, which is the only check a
+# branch rule should require (the 12-apps convention).
+#
+# Today it runs what this repository has: the script tests, the rule that
+# every CI change lands with an entry in docs/ci/EXPERIMENTS.md
+# (docs/adr/every-ci-change-is-documented.md), and the ADR record check. The
+# app lanes (lint, typecheck, unit, APK) are added when apps/mobile exists,
+# through 12-apps/ci's reusable workflows (memory `ci-engine-or-consumer`).
+#
+# Node builtins only: no install step.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Depth 1 on purpose: the documentation gate deepens by one commit to
+          # reach the merge commit's first parent, which is the exact base.
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Script tests
+        run: node --test "scripts/__tests__/*.test.mjs"
+      - name: Every CI change is documented
+        run: node scripts/ci/ci-change-documented.mjs
+      - name: ADR records are well formed
+        run: node scripts/adr/render-index.mjs --records

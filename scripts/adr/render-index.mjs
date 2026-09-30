@@ -10,7 +10,9 @@
  *
  * Usage:
  *   node scripts/adr/render-index.mjs          # rewrite the README in place
- *   node scripts/adr/render-index.mjs --check  # exit 1 when stale or a record is malformed
+ *   node scripts/adr/render-index.mjs --check    # exit 1 when stale or a record is malformed
+ *   node scripts/adr/render-index.mjs --records  # exit 1 when a record is malformed (pull requests:
+ *                                                # the table is the post-merge job's, so staleness is fine)
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -43,6 +45,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (errors.length) {
     for (const error of errors) console.error(`[adr-index] ${error}`);
     process.exit(1);
+  }
+  if (process.argv.includes("--records")) {
+    console.log("[adr-index] records ok");
+    process.exit(0);
   }
   if (process.argv.includes("--check")) {
     const { changed } = renderedReadme(root);
