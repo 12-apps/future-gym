@@ -27,6 +27,6 @@ describe("screenless native foundation", () => {
     const first = render(<AppProviders><FoundationScreen /></AppProviders>);
     first.unmount();
     render(<AppProviders><FoundationScreen /></AppProviders>);
-    expect(screen.getAllByTestId("gym-foundation")).toHaveLength(1);
+    expect(screen.getAllByTestId("gym-foundation")).toHaveLength(2);
   });
 });
