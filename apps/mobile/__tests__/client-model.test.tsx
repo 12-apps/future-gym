@@ -1,5 +1,5 @@
 import { beginWorkout, commandForTenant, createSession, finishSession, parseSetInput, remainingMilliseconds, selectTenant, summarizeSession, trainingForMember, updateSession } from "../src/client/model";
-import { createDemoState, SAMPLE_WORKOUTS, sampleRolesForTenant } from "../src/client/sample-data";
+import { createDemoState, SAMPLE_PROVIDERS, SAMPLE_WORKOUTS, sampleRolesForTenant } from "../src/client/sample-data";
 import { formatInputNumber } from "../src/client/copy";
 const workout = SAMPLE_WORKOUTS[0]!;
 const session = () => createSession(workout, "sample-member", "session-1", 1000);
@@ -94,6 +94,40 @@ describe("native workout state", () => {
 });
 
 describe("tenant boundaries", () => {
+  it("allows two concurrent personal trainers without sharing sessions, history or reused loads", () => {
+    const providers = SAMPLE_PROVIDERS.filter((provider) => provider.providerType === "personal-trainer");
+    expect(providers).toHaveLength(2);
+    const first = providers[0]!; const second = providers[1]!;
+    const firstWorkout = SAMPLE_WORKOUTS.find((item) => item.tenantId === first.id)!;
+    const secondWorkout = SAMPLE_WORKOUTS.find((item) => item.tenantId === second.id)!;
+    let state = createDemoState(); const userId = state.userId;
+    for (const provider of providers) expect(sampleRolesForTenant(userId, provider.id)).toEqual(["client"]);
+    state = beginWorkout(selectTenant(state, first.id), firstWorkout, "marina-session", 0);
+    state = commandForTenant(state, first.id, "marina-session", { type: "set-log", exerciseId: "agachamento", setIndex: 0, kg: 15, repetitions: 10 });
+    state = commandForTenant(state, first.id, "marina-session", { type: "toggle-set", exerciseId: "agachamento", setIndex: 0 });
+    state = beginWorkout(selectTenant(state, second.id), secondWorkout, "rafael-session", 1000);
+    expect(state.userId).toBe(userId);
+    expect(trainingForMember(state).activeSession!.logs.agachamento![0]!.kg).toBe(8);
+    expect(trainingForMember(state).history).toHaveLength(0);
+    expect(commandForTenant(state, first.id, "marina-session", { type: "start-set", now: 1000 })).toBe(state);
+    state = commandForTenant(state, second.id, "rafael-session", { type: "toggle-set", exerciseId: "agachamento", setIndex: 0 });
+    state = selectTenant(state, first.id);
+    expect(trainingForMember(state).activeSession!.id).toBe("marina-session");
+    expect(trainingForMember(state).activeSession!.logs.agachamento![0]).toMatchObject({ kg: 15, completed: true });
+    state = finishSession(state, first.id, "marina-session", 2000);
+    expect(trainingForMember(state).history).toHaveLength(1);
+    expect(trainingForMember(state).history[0]).toMatchObject({ userId, tenantId: first.id, volumeKg: 150 });
+    state = selectTenant(state, second.id);
+    expect(trainingForMember(state).history).toHaveLength(0);
+    expect(trainingForMember(state).activeSession!.id).toBe("rafael-session");
+    state = finishSession(state, second.id, "rafael-session", 3000);
+    expect(trainingForMember(state).history).toHaveLength(1);
+    expect(trainingForMember(state).history[0]).toMatchObject({ userId, tenantId: second.id, volumeKg: 96 });
+    state = beginWorkout(state, secondWorkout, "rafael-next", 4000);
+    expect(trainingForMember(state).activeSession!.logs.agachamento![0]!.kg).toBe(8);
+    state = beginWorkout(selectTenant(state, first.id), firstWorkout, "marina-next", 4000);
+    expect(trainingForMember(state).activeSession!.logs.agachamento![0]!.kg).toBe(15);
+  });
   it("keeps a gym owner's role local while the same global person is a physiotherapy client", () => {
     const state = createDemoState();
     expect(sampleRolesForTenant(state.userId, "sample-gym")).toContain("owner");

@@ -115,6 +115,57 @@ describe("native client flows through the real router", () => {
     expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
     expect(screen.queryByText("400 kg")).toBeNull();
   });
+  it("selects either of two personal trainers and keeps their sessions and histories separate", async () => {
+    boot(); await screen.findByTestId("gym-home");
+    const changeProvider = async (id: string) => {
+      fireEvent.press(screen.getByTestId("provider-switch"));
+      expect(screen.getByTestId("provider-sample-personal")).toBeOnTheScreen();
+      expect(screen.getByTestId("provider-sample-personal-rafael")).toBeOnTheScreen();
+      fireEvent.press(screen.getByTestId(`provider-${id}`));
+      await screen.findByTestId("gym-home");
+    };
+    const begin = async (id: string) => {
+      fireEvent.press(screen.getByTestId(`workout-${id}`));
+      fireEvent.press(await screen.findByTestId("start-workout"));
+      await screen.findByTestId("gym-session");
+      fireEvent.press(screen.getByTestId("toggle-set-0"));
+      fireEvent.press(screen.getByLabelText("Voltar à ficha"));
+      await screen.findByTestId("gym-home");
+    };
+    const resumeAndSave = async (volume: string) => {
+      fireEvent.press(screen.getByTestId("home-open-workout"));
+      await screen.findByTestId("gym-session");
+      expect(screen.getByLabelText("Série 1: Concluída")).toBeOnTheScreen();
+      fireEvent.press(screen.getByTestId("finish-workout"));
+      fireEvent.press(screen.getByTestId("save-finish"));
+      await screen.findByTestId("gym-summary");
+      expect(screen.getByText(volume)).toBeOnTheScreen();
+      fireEvent.press(screen.getByText("Voltar à ficha"));
+      await screen.findByTestId("gym-home");
+      fireEvent.press(screen.getByText("Histórico"));
+      await screen.findByTestId("gym-history");
+      expect(screen.getByText(`${volume} kg`)).toBeOnTheScreen();
+    };
+    await changeProvider("sample-personal");
+    expect(screen.queryByTestId("workout-personal-rafael-a")).toBeNull();
+    await begin("personal-a");
+    await changeProvider("sample-personal-rafael");
+    expect(screen.queryByTestId("workout-personal-a")).toBeNull();
+    expect(screen.queryByText("TREINO EM ANDAMENTO")).toBeNull();
+    await begin("personal-rafael-a");
+    await changeProvider("sample-personal");
+    await resumeAndSave("120");
+    expect(screen.queryByText("96 kg")).toBeNull();
+    await changeProvider("sample-personal-rafael");
+    fireEvent.press(screen.getByText("Histórico"));
+    await screen.findByTestId("gym-history");
+    expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
+    expect(screen.queryByText("120 kg")).toBeNull();
+    fireEvent.press(screen.getByText("Início"));
+    await screen.findByTestId("gym-home");
+    await resumeAndSave("96");
+    expect(screen.queryByText("120 kg")).toBeNull();
+  });
   it("disables empty save, discards, and can start fresh", async () => {
     await start();
     fireEvent.press(screen.getByTestId("finish-workout"));

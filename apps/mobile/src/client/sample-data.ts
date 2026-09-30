@@ -9,13 +9,15 @@ export interface ProviderSummary {
 export const SAMPLE_PROVIDERS: readonly ProviderSummary[] = [
   { id: "sample-gym", name: "Academia Horizonte", providerType: "gym" },
   { id: "sample-personal", name: "Personal Marina", providerType: "personal-trainer" },
+  { id: "sample-personal-rafael", name: "Personal Rafael", providerType: "personal-trainer" },
   { id: "sample-physio", name: "Fisioterapia Movimento", providerType: "physiotherapist" },
 ];
 
-/** One global person can own one provider and receive care from another. */
+/** One global person can join multiple providers of the same type concurrently. */
 export const SAMPLE_RELATIONSHIPS: readonly { userId: string; tenantId: string; roles: readonly string[] }[] = [
   { userId: "sample-member", tenantId: "sample-gym", roles: ["owner", "client"] },
   { userId: "sample-member", tenantId: "sample-personal", roles: ["client"] },
+  { userId: "sample-member", tenantId: "sample-personal-rafael", roles: ["client"] },
   { userId: "sample-member", tenantId: "sample-physio", roles: ["client"] },
 ];
 export const sampleRolesForTenant = (userId: string, tenantId: string): readonly string[] =>
@@ -58,11 +60,16 @@ export const SAMPLE_WORKOUTS: readonly Workout[] = [
     exercise("elevacao-bracos", "Elevação dos braços", "Ombros", 2, 10, 30, 60, 0),
     exercise("sentar-levantar", "Sentar e levantar", "Pernas", 2, 8, 30, 60, 0),
   ] },
+  { id: "personal-rafael-a", tenantId: "sample-personal-rafael", letter: "A", name: "Equilíbrio e Força", prescribedBy: "Rafael · Personal", exercises: [
+    exercise("agachamento", "Agachamento com halter", "Quadríceps e glúteos", 2, 12, 35, 75, 8),
+    exercise("elevacao-lateral", "Elevação lateral", "Deltoide lateral", 2, 12, 30, 60, 4),
+  ] },
 ];
 
 export const SAMPLE_WEEK: Record<string, readonly (string | null)[]> = {
   "sample-gym": ["gym-a", "gym-b", "gym-c", null, "gym-a", "gym-b", null],
   "sample-personal": [null, "personal-a", null, "personal-a", null, null, null],
+  "sample-personal-rafael": ["personal-rafael-a", null, null, null, "personal-rafael-a", null, null],
   "sample-physio": ["physio-a", null, "physio-a", null, "physio-a", null, null],
 };
 

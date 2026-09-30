@@ -4,7 +4,7 @@ Scope: [GYM-4](https://linear.app/12-apps/issue/GYM-4/build-the-tenant-scoped-na
 
 ## What this build does
 
-- Presents separate sample gym, personal-training and physiotherapy spaces for one sample member.
+- Presents separate sample gym, two personal-training and physiotherapy spaces for one sample member.
 - Shows assigned workouts and exercise prescriptions without an editing surface.
 - Starts an independent active session for each space; navigation and provider switches retain its state.
 - Records completed sets and validated load/repetition values, with cancel and error paths.
@@ -18,7 +18,7 @@ The input reference is the user-supplied `Future Gym.html` (105,552 bytes). The 
 
 This is a session-only sample adapter. All sample content is visibly labeled and stays in memory. Relaunching the process clears demo sessions/history. There is no authentication, server authorization, API persistence, trainer transmission, real billing or subscription flow. Exercise examples are fixtures, not a training recommendation. No pricing, minimum student count or permanent application identifier has been invented.
 
-The business plan admits one global user to multiple provider tenants. The fixture includes a gym owner who is also a client of a separate physiotherapy provider; ownership never crosses that tenant boundary. The prototype rejects stale-account and mis-keyed-tenant snapshots before both display and mutation. It keeps all records under the selected tenant and carries the sample user ID through session and history boundaries. These guards prevent local state leakage; they are not a substitute for server-side membership verification. The future API must derive membership/permissions from the authenticated user and selected tenant, never trust these mock identifiers.
+The business plan admits one global user to multiple provider tenants, including multiple providers of the same type at the same time. There is no one-personal-trainer limit. Both sample personal trainers remain selectable and have independent prescriptions, active sessions and history keyed by tenant ID, never provider type. The fixture includes a gym owner who is also a client of a separate physiotherapy provider; ownership never crosses that tenant boundary. The prototype rejects stale-account and mis-keyed-tenant snapshots before both display and mutation. It keeps all records under the selected tenant and carries the sample user ID through session and history boundaries. These guards prevent local state leakage; they are not a substitute for server-side membership verification. The future API must derive membership/permissions from the authenticated user and selected tenant, never trust these mock identifiers.
 
 Prescription editing and partner duels are intentionally deferred from this first functional version. Trainer desktop React web, backend and superadmin are separate work. The volume view reports direct planned sets from sample prescriptions and makes no ideal-volume, recovery, or clinical claims.
 
@@ -42,16 +42,16 @@ The installed version and lockfile integrity were checked against the actual
 registry tarball (`sha512-uFDhi8ujqAxE4veUKqKj72ab7GVXqG9ZUgJa4+XIYOnUXKrn5GHUi4rVsoVGSpKnez98XDEL5L2QHNgjTCk2pw==`).
 No local path, candidate version or source overlay is required.
 
-- Native tests: 118 passed across 12 Android/iOS suites, zero skipped (2026-09-30,
-  42.539 seconds). Includes 32 pure state cases per platform, eight real-router
+- Native tests: 122 passed across 12 Android/iOS suites, zero skipped (2026-09-30,
+  34.097 seconds, with a 1,536 MB Node heap limit). Includes 33 pure state cases per platform, nine real-router
   flows per platform, 16 navigation/lifecycle regression cases per platform, provider/router smoke checks, and a shared theme contract.
 - Root contracts: 43 passed, zero skipped. The initial foundation-only
   `FOUNDATION_COPY` assertion was updated to the actual `CLIENT_COPY`; the check
   now scans all production sources and pins the shared Screen import and absence
   of WebView/HTML rendering.
 - App lint, typecheck, ADR record validation and diff whitespace checks: passed.
-- Fresh Android Hermes export: 1,407 modules, 9,178 ms Metro, 3,041,434 bytes.
-- Fresh iOS Hermes export: 1,272 modules, 8,393 ms Metro, 2,729,796 bytes.
+- Fresh Android Hermes export: 1,407 modules, 8,266 ms Metro, 3,041,703 bytes.
+- Fresh iOS Hermes export: 1,272 modules, 7,763 ms Metro, 2,730,080 bytes.
 - Both exports were cleared first and verified as nonempty files referenced by
   their platform's Metro metadata. Local export used two Metro workers after an
   unbounded-worker attempt exited without a bundle. That first attempt is not
@@ -102,3 +102,22 @@ pending and is not replaced by this source review.
 6. Finish, choose continue, then finish and save. The summary must show one completed set and 382.5 kg, excluding all planned-but-unperformed sets. The history remains empty in the other space.
 7. Start an empty session and attempt to finish: save is disabled; discard returns home. Starting again creates a fresh session.
 8. Check Android back/dismissal, keyboard reachability, small-phone scrolling and large-font layout on a real runtime. Check iOS separately; Android evidence does not establish iOS acceptance.
+
+## Same-type provider clarification
+
+The sample global person now belongs to both Personal Marina and Personal Rafael
+concurrently. A state regression exercises independent active sessions, histories,
+reused completed loads and stale-command rejection even when both prescriptions
+use the same exercise ID. A real-router flow selects both providers, saves each
+session separately and checks that the other provider’s volume/history stays hidden.
+These are state/renderer/router tests, not backend E2E. File-database-backed E2E
+will consume the shared foundation’s FuturePay-compatible test infrastructure
+after integration, rather than creating another database layer here.
+This adds no pricing, exclusivity, subscription or backend authorization behavior.
+
+Clarification verification (2026-09-30): 122 Android/iOS cases and 43 root cases
+passed with zero skipped, plus lint, types, ADR records and both fresh Hermes
+exports. Independent focused review found no blocker. The first unbounded-heap
+full test invocation exited without assertion output and is not counted as a
+pass; the full bounded-heap rerun passed. The cause of that first exit remains
+unconfirmed. These results do not replace the pending native device audit.
