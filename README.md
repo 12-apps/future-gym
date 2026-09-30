@@ -11,9 +11,10 @@ Protótipo de app de academia em um único arquivo (`index.html`), sem build. Ab
 - **Duelo**: adicione parceiros de treino (nome e peso corporal) e dispute a pontuação da semana:
   `pontos = tonelagem da semana (carga × repetições) ÷ peso corporal`.
   Treinando junto, você anota as cargas do parceiro na mesma tela; treinos que a pessoa fez sozinha entram como "treino avulso".
+- **Treinos (montar a ficha)**: escolha a divisão (Full body, AB, ABC, ABCD, ABCDE) ou monte a sua dia a dia; crie até 6 treinos (A a F), dê nome a cada um e cadastre os exercícios com séries, repetições, tempo de série, intervalo e carga inicial. Dá para reordenar, editar e remover. O campo de exercício sugere nomes comuns e preenche o músculo.
 - **Histórico**: treinos concluídos com duração, séries e tonelagem.
 
-Os dados ficam no `localStorage` do navegador. A ficha fica em `WORKOUTS` e `WEEK_PLAN`, no início do script.
+Os dados ficam no `localStorage` do navegador. A ficha de exemplo (usada até você editar) fica em `DEFAULT_WORKOUTS` e `DEFAULT_WEEK`, no início do script.
 
 ## Rodar localmente
 
