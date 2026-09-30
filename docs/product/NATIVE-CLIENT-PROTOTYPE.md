@@ -32,25 +32,26 @@ Numeric editing uses a dedicated shared Screen route. That keeps keyboard avoida
 
 ## Native dependency
 
-Every screen requires the shared `@12-apps/ui/layout/Screen` export for safe area, scroll and keyboard handling. It must be installed from the actual shared-package candidate/release before screen compilation and execution can pass. The app has no fallback implementation and never imports raw `react-native` components or types.
+Every screen requires the shared `@12-apps/ui/layout/Screen` export for safe area, scroll and keyboard handling. The app pins the published `@12-apps/ui` version `6.56.0`, which includes Screen and the native Home, FitnessCenter and History icons. The app has no fallback implementation and never imports raw `react-native` components or types.
 
 ## Verification record
 
-All results below use the full-source local UI candidate with SHA-256
-`67de0d97bfd1103948a7913d681305c9f99b25c3e8223d6b4ac1f72d3778d501`.
-It is not a registry release. Consumer package/lockfile pins remain unchanged,
-so a clean ordinary install still awaits the real shared release.
+All results below use the published [UI 6.56.0 release](https://github.com/12-apps/shared-packages/releases/tag/ui-v6.56.0).
+Both prior dependency trees were removed before a frozen-lockfile registry install.
+The installed version and lockfile integrity were checked against the actual
+registry tarball (`sha512-uFDhi8ujqAxE4veUKqKj72ab7GVXqG9ZUgJa4+XIYOnUXKrn5GHUi4rVsoVGSpKnez98XDEL5L2QHNgjTCk2pw==`).
+No local path, candidate version or source overlay is required.
 
 - Native tests: 118 passed across 12 Android/iOS suites, zero skipped (2026-09-30,
-  18.826 seconds). Includes 32 pure state cases per platform, eight real-router
+  42.539 seconds). Includes 32 pure state cases per platform, eight real-router
   flows per platform, 16 navigation/lifecycle regression cases per platform, provider/router smoke checks, and a shared theme contract.
 - Root contracts: 43 passed, zero skipped. The initial foundation-only
   `FOUNDATION_COPY` assertion was updated to the actual `CLIENT_COPY`; the check
   now scans all production sources and pins the shared Screen import and absence
   of WebView/HTML rendering.
 - App lint, typecheck, ADR record validation and diff whitespace checks: passed.
-- Fresh Android Hermes export: 1,407 modules, 10,101 ms Metro, 3,041,433 bytes.
-- Fresh iOS Hermes export: 1,272 modules, 9,461 ms Metro, 2,729,796 bytes.
+- Fresh Android Hermes export: 1,407 modules, 9,178 ms Metro, 3,041,434 bytes.
+- Fresh iOS Hermes export: 1,272 modules, 8,393 ms Metro, 2,729,796 bytes.
 - Both exports were cleared first and verified as nonempty files referenced by
   their platform's Metro metadata. Local export used two Metro workers after an
   unbounded-worker attempt exited without a bundle. That first attempt is not
@@ -59,7 +60,8 @@ so a clean ordinary install still awaits the real shared release.
 - The first partial UI candidate was rejected: Screen/icons had a duplicate
   theme context and ignored a dark UiProvider. A consumer regression reproduced
   the mismatch on both platforms. The replacement builds all native/web entries
-  together, and the unchanged regression now passes.
+  together, and the unchanged regression passes against both the replacement
+  full-source candidate and the published release.
 - Device/runtime screenshots: pending a separately authorized GitHub-hosted
   audit. The prepared harness covers 16 states and passes Python/shell syntax and
   actionlint checks; these are preparation checks, not execution evidence.
