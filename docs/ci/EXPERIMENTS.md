@@ -326,3 +326,13 @@ commands. An actual local missing-override mutation exited 1 (5/7 runner tests
 passed, 2 failed); after restoration all 43 root cases passed. No remote
 repository settings or credentials changed. Hosted negative/positive integration
 will be appended after execution.
+
+**Addendum (2026-09-30):** Hosted negative
+[36746106434](https://github.com/12-apps/future-gym/actions/runs/36746106434),
+head `107296de0f33a07fe809f68a3df839c185f45a49`, deliberately omitted only the
+static caller's runner override. The actual root command exited 1 with 41 passed
+and 2 failed cases (804.6 ms); its exact error was `ci.yml/static: runner override
+is required`. Repository Contracts and CI Success both failed. Static and Tests
+were skipped before any inherited runner could be requested. This is the
+expected policy failure, not an accepted regression. The following commit
+restores the explicit override and requires a new exact-head green run.

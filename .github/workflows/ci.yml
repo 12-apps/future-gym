@@ -66,6 +66,7 @@ jobs:
     uses: 12-apps/ci/.github/workflows/monorepo-static.yml@ea88024608cb8c9f5ce8fe655fb64e6866bbf469 # v2.49.0
     with:
       # Public repository: never inherit an organization self-hosted runner.
+      runner: ubuntu-latest
       node-version: '22'
       stack-aware: true
       code-paths: |
