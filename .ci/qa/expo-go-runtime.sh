@@ -71,7 +71,7 @@ wait_shell() {
     sleep 4
     adb shell uiautomator dump /sdcard/proof.xml >/dev/null 2>&1 || continue
     adb pull /sdcard/proof.xml "$OUT/current.xml" >/dev/null 2>&1
-    if grep -q 'Início' "$OUT/current.xml"; then found=1; break; fi
+    if python3 .ci/qa/expo-go-ui.py assert "$OUT/current.xml" >/dev/null 2>&1; then found=1; break; fi
     # Only dismiss the known, non-binding Expo Go onboarding tutorial.
     python3 .ci/qa/expo-go-ui.py onboarding "$OUT/current.xml"
   done

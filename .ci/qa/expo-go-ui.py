@@ -23,6 +23,14 @@ if action == 'onboarding':
     for node in nodes:
         observed = {text(node), node.attrib.get('text', ''), node.attrib.get('content-desc', '')}
         tutorial_continue = 'This is the developer menu.' in visible and 'Continue' in observed
+        native_menu_close = 'Reload' in visible and 'Open DevTools' in visible and 'Close' in observed
+        if native_menu_close:
+            shot = Path(path).parent / '00b-expo-go-menu.png'
+            if not shot.exists():
+                shot.write_bytes(subprocess.check_output(['adb', 'exec-out', 'screencap', '-p']))
+            print('Closing the observed Expo Go developer menu')
+            tap(node)
+            break
         if tutorial_continue or 'Got it' in observed:
             if tutorial_continue:
                 shot = Path(path).parent / '00-expo-go-tutorial.png'
