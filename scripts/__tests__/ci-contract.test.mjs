@@ -124,3 +124,9 @@ test("workflow wires real root evidence, strict skips, validated engine and safe
   assert.doesNotMatch(workflow, /skip-green: enforce|passWithNoTests|continue-on-error/);
   for (const path of [".ci/workspaces.json"]) assert.equal(CI_PATH_RE.test(path), true, path);
 });
+
+test("root signal requires the established suite, not zero, skipped or file-only successes", async () => {
+  const { assertRootTestCount } = await import("../ci/root-test-count.mjs");
+  assert.equal(assertRootTestCount("# pass 30\n# fail 0\n"), 30);
+  for (const tap of ["", "# pass 0\n# fail 0\n", "# pass 3\n# fail 0\n", "# pass 30\n# fail 1\n", "# pass 30\n# fail 0\n# pass 0\n# fail 0\n"]) assert.throws(() => assertRootTestCount(tap));
+});

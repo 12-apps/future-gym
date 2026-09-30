@@ -34,13 +34,17 @@ jobs:
         run: node scripts/ci/workspace-contract.mjs
       - name: Run real root tests and emit JUnit
         run: |
+          set -euo pipefail
           mkdir -p reports/junit
-          node --test --test-reporter=tap --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=reports/junit/root.xml "scripts/__tests__/*.test.mjs"
+          printf "import { test } from 'node:test'; test.skip('deliberate all-skipped CI probe', () => {});\n" > /tmp/gym-zero.test.mjs
+          node --test --test-reporter=tap --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=reports/junit/root.xml /tmp/gym-zero.test.mjs | tee reports/root.tap
       - name: Require executed root tests
         uses: 12-apps/ci/.github/actions/vitest-signal-guard@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
         with:
           reports: reports/junit/root.xml
           lane: repository-contracts
+      - name: Require the established root case count
+        run: node scripts/ci/root-test-count.mjs reports/root.tap
       - name: Every CI change is documented
         run: node scripts/ci/ci-change-documented.mjs
       - name: ADR records are well formed
@@ -64,6 +68,17 @@ jobs:
     with:
       node-version: '22'
       stack-aware: true
+      code-paths: |
+        apps/**
+        packages/**
+        scripts/**
+        .ci/**
+        .github/**
+        *.json
+        *.yaml
+        .npmrc
+        .node-version
+        .nvmrc
       # Complete MERGED tree, including modes, globals and documents tests read.
       # Conservative: no app-specific ignores; engine supplies execution context.
       lint-fingerprint-command: git rev-parse 'HEAD^{tree}'
