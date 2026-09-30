@@ -144,3 +144,12 @@ The first GitHub run is the push that adds this to 12-apps/future-gym#1.
 - **Aggregation:** `ci-success` lists every tier in `needs` (a failed `static` skips `tests`, and a skip is not a failure).
 - **Tier inputs:** the `with:` keys stay within the engine's declared inputs.
 - **Zero tasks:** once `apps/mobile` lands, a `tests` run reporting 0 tasks is a regression. Set `unit-junit-reports` then, so the zero-test guard arms.
+
+**Addendum (2026-09-30):** What the first GitHub run found.
+
+- **The failure:** run 36707818061 ended in `startup_failure` with no job created. A reusable workflow's jobs may only request permissions the caller grants.
+  - `monorepo-static.yml@v2` has a job declaring `actions: read` (its retry gate).
+  - The `static` caller granted only `contents: read` and `pull-requests: read`.
+  - future-pay's `static` grants `actions: read` for exactly this reason.
+- **The fix:** `static` now grants it. `monorepo-tests.yml@v2` declares only `contents: read`, which `tests` already grants.
+- **Added to the regression watch:** each engine caller grants a superset of the scopes its reusable workflow's jobs declare. Re-read them when `v2` moves: `grep -n "permissions" -A4` over the engine file.

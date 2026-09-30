@@ -35,9 +35,14 @@ permissions:
 jobs:
   static:
     name: Static
+    # A caller must grant a SUPERSET of what the reusable workflow's jobs
+    # declare, or the whole run dies at startup with no job at all (run
+    # 36707818061, E-003). monorepo-static's retry gate declares
+    # `actions: read`; future-pay grants it for the same reason.
     permissions:
       contents: read
       pull-requests: read # dorny/paths-filter reads the PR's file list
+      actions: read
     uses: 12-apps/ci/.github/workflows/monorepo-static.yml@v2
     with:
       # On a stacked PR, select against the STACK's base, not the layer below
