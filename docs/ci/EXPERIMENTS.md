@@ -153,3 +153,9 @@ The first GitHub run is the push that adds this to 12-apps/future-gym#1.
   - future-pay's `static` grants `actions: read` for exactly this reason.
 - **The fix:** `static` now grants it. `monorepo-tests.yml@v2` declares only `contents: read`, which `tests` already grants.
 - **Added to the regression watch:** each engine caller grants a superset of the scopes its reusable workflow's jobs declare. Re-read them when `v2` moves: `grep -n "permissions" -A4` over the engine file.
+
+**Addendum (2026-09-30):** The engine pipeline, confirmed on GitHub.
+
+- **The run:** run 36707923606 (after the permissions fix) completed `success`. Static ran Detect Changes, Lint, Type Check and Actionlint, all success, with Retry Gate skipped since there was no previous failure. Tests ran Unit Plan, Unit Tests and Build, all success, with the integration lanes skipped because this repo declares none. CI Success was success.
+- **Zero tasks, as predicted:** the Lint and Unit Tests logs both read `Tasks: 0 successful, 0 total` ("No tasks were executed"). Until `apps/mobile` exists, green tiers ran nothing.
+- **The root suite in `ci-success`:** `job results: success success`, then `# tests 17 # pass 17 # fail 0`, then `base: merge parent (the base tip this run merged into) · 49 changed path(s) · 3 entries`, then `ok`, then `[adr-index] records ok`.
