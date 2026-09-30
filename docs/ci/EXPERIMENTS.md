@@ -94,3 +94,9 @@ The first GitHub run is the PR that adds the workflow (12-apps/future-gym#1).
 - `CI_PATH_RE` covers every file the workflows run. A new CI script outside those paths needs the regex widened in the same PR.
 - The job keeps `fetch-depth: 1` plus the gate's `--deepen=1`, so the base is the merge commit's first parent (test "CLI: on a pull-request checkout…").
 - The test step reads the test COUNT, not only the exit code: the glob must match the files (16 today).
+
+**Addendum (2026-09-30):** What the first GitHub run found.
+
+- **The failure:** run 36707073096 (job 109859741852, `ubuntu-latest`, git 2.55) failed 1 of 16 tests. The case "CLI: on a pull-request checkout the base is the merge commit's first parent" got `base: origin/main tip (fetched now)`. The `--deepen=1 origin` fetch that finds the merge parent on git 2.43 left the merge commit parentless on git 2.55. The gate then fell back to a base tip fetched later. That fallback can only over-demand an entry, never hide one, but it is not the exact base.
+- **The fix:** when the merge parent is still missing, the gate fetches the merge commit itself with `--depth=2`, which brings its parents in. The runner had already shown a fetch by SHA working in that same test.
+- **The new test:** "…when --deepen leaves the merge commit parentless…" forces that path with `CI_DOC_SKIP_DEEPEN=1`. It fails with the `--depth=2` fetch removed and passes with it. The suite is now 17 tests, and the regression watch count above reads 17.

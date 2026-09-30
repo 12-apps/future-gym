@@ -158,3 +158,26 @@ test("CLI: on a pull-request checkout the base is the merge commit's first paren
   assert.match(r.stdout, /base: merge parent/);
   assert.match(r.stdout, /1 changed path\(s\)/, "only the PR's own docs/x.md — not the workflow main changed afterwards");
 });
+
+test("CLI: when --deepen leaves the merge commit parentless (git 2.55 on the hosted runner), fetching it two deep still finds the merge parent", () => {
+  const remote = repo("pr-remote-nodeepen");
+  put(remote, { [LOG]: HEADER + E1, ".github/workflows/ci.yml": "name: CI\n" }, "base");
+  const baseTip = git(remote, "rev-parse", "HEAD");
+  git(remote, "checkout", "-q", "-b", "feat/y");
+  put(remote, { "docs/y.md": "y\n" }, "docs only");
+  const head = git(remote, "rev-parse", "HEAD");
+  git(remote, "checkout", "-q", "-b", "pr-merge", baseTip);
+  git(remote, "merge", "-q", "--no-ff", "-m", "merge", head);
+  const mergeSha = git(remote, "rev-parse", "HEAD");
+  git(remote, "update-ref", "refs/pull/2/merge", mergeSha);
+  git(remote, "checkout", "-q", "main");
+  put(remote, { ".github/workflows/ci.yml": "name: CI\non: push\n" }, "main moves a workflow after the merge was cut");
+  const local = join(TMP, "pr-local-nodeepen");
+  execFileSync("git", ["clone", "-q", "--depth=1", "--no-checkout", `file://${remote}`, local], { stdio: "ignore" });
+  git(local, "fetch", "--depth=1", "origin", `+${mergeSha}:refs/remotes/pull/2/merge`);
+  git(local, "checkout", "-q", mergeSha);
+  const r = spawnSync("node", [GATE], { cwd: local, encoding: "utf8", env: { ...process.env, CI_DOC_REPO: local, CI_DOC_BASE: "", CI_DOC_SKIP_DEEPEN: "1", CI_DOC_HEAD_REF: "feat/y", GITHUB_EVENT_NAME: "pull_request", GITHUB_BASE_REF: "main" } });
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  assert.match(r.stdout, /base: merge parent/);
+  assert.match(r.stdout, /1 changed path\(s\)/);
+});

@@ -133,9 +133,21 @@ export function resolveBase(cwd, env = process.env) {
     // the run started. Its first parent is that tip, so `HEAD^1..HEAD` is the
     // pull request's change set exactly. A depth-1 checkout does not have the
     // parents; deepening by one commit brings them in without any history.
-    tryGit(cwd, "fetch", "--no-tags", "--deepen=1", "origin");
-    const parents = (tryGit(cwd, "rev-list", "--parents", "-n", "1", "HEAD") ?? "").split(" ");
-    if (parents.length >= 3 && tryGit(cwd, "cat-file", "-e", `${parents[1]}^{commit}`) !== null) return { ref: parents[1], how: "merge parent (the base tip this run merged into)" };
+    //
+    // Measured on the GitHub-hosted runner (git 2.55, run 36707073096): the
+    // `--deepen=1 origin` fetch that works on git 2.43 left the merge commit
+    // parentless there, and the gate fell back to a base tip fetched later.
+    // Fetching the merge commit itself two deep brings its parents in on both.
+    const mergeParent = () => {
+      const parents = (tryGit(cwd, "rev-list", "--parents", "-n", "1", "HEAD") ?? "").split(" ");
+      return parents.length >= 3 && tryGit(cwd, "cat-file", "-e", `${parents[1]}^{commit}`) !== null ? parents[1] : null;
+    };
+    const how = "merge parent (the base tip this run merged into)";
+    if (!mergeParent() && process.env.CI_DOC_SKIP_DEEPEN !== "1") tryGit(cwd, "fetch", "--no-tags", "--deepen=1", "origin");
+    if (mergeParent()) return { ref: mergeParent(), how };
+    const head = tryGit(cwd, "rev-parse", "HEAD");
+    if (head) tryGit(cwd, "fetch", "--no-tags", "--depth=2", "origin", head);
+    if (mergeParent()) return { ref: mergeParent(), how };
     // Not a merge checkout (a fork, a custom ref): the base tip fetched now is
     // the closest available. It can be NEWER than the tip the run used, which
     // only ever ADDS paths to the diff — a false demand for an entry is loud;
