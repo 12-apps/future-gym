@@ -5,26 +5,35 @@ OUT="$ROOT/runtime-evidence"
 mkdir -p "$OUT"
 export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
 cleanup() {
-  adb logcat -d > "$OUT/logcat.txt" 2>&1 || true
-  adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
-  adb pull /sdcard/final.xml "$OUT/final.xml" > /dev/null 2>&1 || true
-  adb exec-out screencap -p > "$OUT/final.png" 2>/dev/null || true
+  if timeout 5 adb get-state >/dev/null 2>&1; then
+    timeout 15 adb logcat -d > "$OUT/logcat.txt" 2>&1 || true
+    timeout 15 adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
+    timeout 15 adb pull /sdcard/final.xml "$OUT/final.xml" > /dev/null 2>&1 || true
+    timeout 15 adb exec-out screencap -p > "$OUT/final.png" 2>/dev/null || true
+    timeout 10 adb emu kill > /dev/null 2>&1 || true
+  fi
   test -z "${METRO_PID:-}" || kill "$METRO_PID" 2>/dev/null || true
-  adb emu kill > /dev/null 2>&1 || true
+  test ! -f "$OUT/emulator.log" || tail -100 "$OUT/emulator.log"
 }
+
 trap cleanup EXIT
 
 # Observe existing hypervisor access. Never change KVM permissions or security.
 if emulator -accel-check > "$OUT/acceleration.txt" 2>&1; then
   ACCEL=auto
 else
-  ACCEL=off
+  cat "$OUT/acceleration.txt"
+  id
+  ls -l /dev/kvm || true
+  echo 'The runtime proof requires usable acceleration after the software boot attempt exceeded its window. No host permissions were changed.'
+  exit 77
 fi
 cat "$OUT/acceleration.txt"
 echo "Using acceleration=$ACCEL without changing host settings"
 emulator -avd gym-proof -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
 EMULATOR_PID=$!
-timeout 900 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do sleep 5; done'
+export EMULATOR_PID
+timeout 900 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do kill -0 "$EMULATOR_PID" || exit 1; sleep 5; done' 
 kill -0 "$EMULATOR_PID"
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard
@@ -46,7 +55,7 @@ capture() {
   local name="$1"
   adb shell uiautomator dump /sdcard/proof.xml >/dev/null
   adb pull /sdcard/proof.xml "$OUT/$name.xml" >/dev/null
-  adb exec-out screencap -p > "$OUT/$name.png"
+  timeout 15 adb exec-out screencap -p > "$OUT/$name.png"
 }
 launch() {
   adb shell am start -a android.intent.action.VIEW -d exp://127.0.0.1:8081 -p host.exp.exponent
