@@ -1,26 +1,49 @@
 # Future Gym
 
-Protótipo de app de academia em um único arquivo (`index.html`), sem build. Abra no navegador do celular ou do computador.
+A single-file gym app prototype (`index.html`), with no build step. Open it in a phone or desktop browser. The user-facing copy is pt-BR.
 
-## O que faz
+> The prototype is a reference artefact. New app code follows
+> `docs/adr/appearance-comes-only-from-12-apps-ui.md`: every visual element
+> comes from `@12-apps/ui`.
 
-- **Início**: ficha da semana (divisão ABC), treino do dia e progresso semanal.
-- **Treino**: lista de exercícios com séries, repetições, tempo de série, intervalo e última carga.
-- **Execução**: ao iniciar um exercício o timer da série corre. No fim da série toca um alarme e começa o intervalo; no fim do intervalo toca outro som e a próxima série começa sozinha. Dá para parar/retomar, marcar a série como concluída antes do tempo, pular o intervalo ou somar 15 s, e seguir para o próximo exercício até **Concluir treino**.
-- **Cargas**: kg e repetições anotados por série, salvos no aparelho e sugeridos no próximo treino.
-- **Duelo**: adicione parceiros de treino (nome e peso corporal) e dispute a pontuação da semana:
-  `pontos = tonelagem da semana (carga × repetições) ÷ peso corporal`.
-  Treinando junto, você anota as cargas do parceiro na mesma tela; treinos que a pessoa fez sozinha entram como "treino avulso".
-- **Treinos (montar a ficha)**: escolha a divisão (Full body, AB, ABC, ABCD, ABCDE) ou monte a sua dia a dia; crie até 6 treinos (A a F), dê nome a cada um e cadastre os exercícios com séries, repetições, tempo de série, intervalo e carga inicial. Dá para reordenar, editar e remover. O campo de exercício sugere nomes comuns e preenche o músculo.
-- **Subgrupos musculares**: cada treino mostra os grupos trabalhados (sugeridos pelo nome, ex.: "Pernas") e divide cada grupo em subgrupos (peitoral superior/médio/inferior, deltoide anterior/lateral/posterior, cabeças do bíceps e tríceps, vastos × reto femoral etc.). O que ficar sem exercício ganha sugestões que você adiciona com um toque.
-- **Volume semanal (under/overtraining)**: séries por semana de cada grupo, somando todos os dias da ficha (compostos contam meia série para os auxiliares). Escolha o objetivo — Cutting, Manutenção ou Bulking — e a faixa ideal e o limite mudam: em bulking a faixa sobe; em cutting o teto cai. Cada grupo aparece como Abaixo (undertraining), Ideal, Alto ou Excesso (overtraining). As faixas partem dos marcos de volume MEV/MRV por grupo, definidos em `GROUPS`.
-- **Histórico**: treinos concluídos com duração, séries e tonelagem.
+## What it does
 
-Os dados ficam no `localStorage` do navegador. A ficha de exemplo (usada até você editar) fica em `DEFAULT_WORKOUTS` e `DEFAULT_WEEK`, no início do script.
+- **Home**: this week's plan, today's workout and weekly progress.
+- **Workout**: exercises with sets, reps, set duration, rest interval and the last load used.
+- **Session**:
+  - Starting an exercise starts the set timer.
+  - When the set ends, an alarm plays and the rest interval starts.
+  - When the rest ends, a different sound plays and the next set starts on its own.
+  - You can pause and resume, finish a set early, skip the rest or add 15 s.
+  - You move to the next exercise until **Concluir treino** (finish workout).
+- **Loads**: kg and reps per set, stored on the device and suggested next time.
+- **Plan editor**:
+  - Pick a split (Full body, AB, ABC, ABCD, ABCDE) or assign each weekday by hand.
+  - Create up to 6 workouts (A to F) and register their exercises.
+  - Each exercise has sets, reps, set duration, rest interval and a starting load.
+  - Exercises can be reordered, edited and removed.
+- **Muscle subgroups**:
+  - Each workout shows the muscle groups it trains, suggested from its name.
+  - Each group is split into subgroups: upper/middle/lower chest, anterior/lateral/posterior deltoid, biceps and triceps heads, vasti vs rectus femoris, and so on.
+  - A subgroup with no exercise gets one-tap suggestions.
+- **Weekly volume (under/overtraining)**:
+  - Counts weekly sets per muscle group across the whole plan. Compound lifts count half a set for their secondary muscles.
+  - The goal (Cutting, Maintenance or Bulking) moves the ideal band and the ceiling.
+  - The bands come from per-group MEV/MRV volume landmarks, defined in `GROUPS`.
+- **Duel**:
+  - Add training partners and compete on weekly tonnage divided by body weight.
+  - When you train together, you log the partner's loads on the same screen.
+- **History**: finished workouts with duration, sets and tonnage.
 
-## Rodar localmente
+Data lives in the browser's `localStorage`. The sample plan, used until you edit it, is `DEFAULT_WORKOUTS` and `DEFAULT_WEEK` at the top of the script.
+
+## Run locally
 
 ```sh
 python3 -m http.server 8000
-# abra http://localhost:8000
+# open http://localhost:8000
 ```
+
+## Decisions
+
+Architecture decisions live in `docs/adr/`. Its index is generated after each merge by `scripts/post-merge-regen.mjs`, so do not edit it by hand.

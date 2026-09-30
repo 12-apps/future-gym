@@ -1,1 +1,10 @@
 *.png
+
+# The plugin workspace. Ignore everything in it EXCEPT the synapsys memory
+# store, which stays committed so a fresh container can read it. The negation
+# needs `.workflow/*` rather than `.workflow/`: git cannot re-include a path
+# whose parent directory is excluded.
+.workflow/*
+!.workflow/synapsys/
+# Install state, not content: `updatedAt` is rewritten on every plugin update.
+.workflow/synapsys/.version.json
