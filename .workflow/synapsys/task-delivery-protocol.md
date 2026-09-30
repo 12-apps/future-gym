@@ -57,7 +57,7 @@ visible. A ticket that hides an assumption reads as complete and fails review
 weeks later; a ticket that names its gap gets unblocked in one reply.
 
 **Defect ticket? Attach the state that reproduces it.** future-gym keeps its
-data on the device (the prototype in `localStorage`), so attach it as a
+data on the device (JSON files via `expo-file-system`), so attach it as a
 `reproduction-state.json` file (the exported store), linked from a
 `## Reproduction state` heading. A FILE, not a fenced block in the body: one
 copy cannot drift from a second one pasted inline. You had the app in that
@@ -91,7 +91,7 @@ No ADR touches your change: say so in one clause and carry on.
 Before any review or merge:
 - Boot, and show each §0 item on screen end to end — client sends, server
   receives, screen shows it. Half-wired fails. Boot: the `run` skill (the
-  prototype: `python3 -m http.server`, see `README.md`). A URL I can open: an
+  mobile app: Expo, see `README.md`). A URL I can open: an
   Artifact or a tunnel to that server.
 - Drive every control, the save, and the error path.
 - **Screenshot as you go, into the scratchpad** — one per §0 item, plus the

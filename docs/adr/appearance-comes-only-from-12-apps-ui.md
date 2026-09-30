@@ -24,7 +24,7 @@
   - `TextInputProps` in `src/contact/contact-panel.tsx:10`.
 
   Each of those lines is a piece of appearance the lib does not own. The app has to maintain it itself, and the next app will copy it.
-- **This repository has no app code yet.** Only the throwaway HTML prototype (`index.html`) exists, and it predates this decision. So the rule costs nothing to adopt now and a migration later.
+- **This repository has no app code yet.** The only UI built so far is a throwaway HTML prototype, kept outside `main` (12-apps/future-gym#1 history). So the rule costs nothing to adopt now and a migration later.
 
 ## Decision
 
@@ -80,5 +80,5 @@ We build every future-gym screen out of `@12-apps/ui` only.
 **Enforcement:** when the app is scaffolded, its ESLint config adds a `no-restricted-imports` rule. It lists the forbidden sources above in `paths` and `patterns` (`react-native`, `react-native-*`, `@mui/*`, `@emotion/*`, `@12-apps/ui/mui/*`, `expo-image`, `expo-linear-gradient`, `expo-blur`, `@expo/vector-icons`, `expo-symbols`). The message on each entry points to this record, `docs/adr/appearance-comes-only-from-12-apps-ui.md`. Tests may import `@testing-library/react-native`, because it renders nothing into the app.
 
 **Out of scope:**
-- `index.html`, the HTML prototype, is exempt as a reference artefact. It gets no new features and goes away when the Expo app replaces it.
+- The HTML prototype is a reference artefact outside `main` (12-apps/future-gym#1 history). It is never merged, gets no new features, and is not app code.
 - This record does not decide the navigation library beyond allowing `expo-router`.

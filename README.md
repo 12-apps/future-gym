@@ -1,49 +1,32 @@
 # Future Gym
 
-A single-file gym app prototype (`index.html`), with no build step. Open it in a phone or desktop browser. The user-facing copy is pt-BR.
+The gym app for the MVP epic [GYM-1](https://linear.app/12-apps/issue/GYM-1/mvp-future-gym): an Android app (Expo + `@12-apps/ui`) where a person runs this week's plan with a set/rest timer, logs loads, checks weekly volume per muscle group, and competes with a training partner.
 
-> The prototype is a reference artefact. New app code follows
-> `docs/adr/appearance-comes-only-from-12-apps-ui.md`: every visual element
-> comes from `@12-apps/ui`.
+This repository is a pnpm + turbo monorepo on the `12-apps/base-app` conventions. It has no workspaces yet; `apps/mobile` arrives with GYM-1 story 0.
 
-## What it does
+## Layout
 
-- **Home**: this week's plan, today's workout and weekly progress.
-- **Workout**: exercises with sets, reps, set duration, rest interval and the last load used.
-- **Session**:
-  - Starting an exercise starts the set timer.
-  - When the set ends, an alarm plays and the rest interval starts.
-  - When the rest ends, a different sound plays and the next set starts on its own.
-  - You can pause and resume, finish a set early, skip the rest or add 15 s.
-  - You move to the next exercise until **Concluir treino** (finish workout).
-- **Loads**: kg and reps per set, stored on the device and suggested next time.
-- **Plan editor**:
-  - Pick a split (Full body, AB, ABC, ABCD, ABCDE) or assign each weekday by hand.
-  - Create up to 6 workouts (A to F) and register their exercises.
-  - Each exercise has sets, reps, set duration, rest interval and a starting load.
-  - Exercises can be reordered, edited and removed.
-- **Muscle subgroups**:
-  - Each workout shows the muscle groups it trains, suggested from its name.
-  - Each group is split into subgroups: upper/middle/lower chest, anterior/lateral/posterior deltoid, biceps and triceps heads, vasti vs rectus femoris, and so on.
-  - A subgroup with no exercise gets one-tap suggestions.
-- **Weekly volume (under/overtraining)**:
-  - Counts weekly sets per muscle group across the whole plan. Compound lifts count half a set for their secondary muscles.
-  - The goal (Cutting, Maintenance or Bulking) moves the ideal band and the ceiling.
-  - The bands come from per-group MEV/MRV volume landmarks, defined in `GROUPS`.
-- **Duel**:
-  - Add training partners and compete on weekly tonnage divided by body weight.
-  - When you train together, you log the partner's loads on the same screen.
-- **History**: finished workouts with duration, sets and tonnage.
+| Path | What |
+| --- | --- |
+| `apps/*`, `packages/*` | Workspaces (none yet). |
+| `docs/adr/` | Architecture decisions. Unnumbered; the index is generated after each merge. |
+| `docs/ci/EXPERIMENTS.md` | Append-only log of every CI change. A CI change without an entry fails `ci-success`. |
+| `scripts/` | Root scripts: the CI documentation gate, the ADR index, their tests. |
+| `.github/workflows/` | CI on the `12-apps/ci` engine (`static`, `tests`, `ci-success`) and the post-merge regeneration. |
+| `.workflow/synapsys/` | Agent memories: the merge and orchestration protocols, process rules, `@12-apps/ui` notes. |
 
-Data lives in the browser's `localStorage`. The sample plan, used until you edit it, is `DEFAULT_WORKOUTS` and `DEFAULT_WEEK` at the top of the script.
-
-## Run locally
+## Commands
 
 ```sh
-python3 -m http.server 8000
-# open http://localhost:8000
+pnpm install
+pnpm turbo run lint check-types test build   # the tiers CI runs
+node --test "scripts/__tests__/*.test.mjs"   # the root suite
+node scripts/adr/render-index.mjs --records  # validate the ADRs
 ```
 
-## Decisions
+## Rules worth knowing first
 
-Architecture decisions live in `docs/adr/`. Its index is generated after each merge by `scripts/post-merge-regen.mjs`, so do not edit it by hand.
+- **Appearance comes only from `@12-apps/ui`**, and app code never imports `react-native`. See `docs/adr/appearance-comes-only-from-12-apps-ui.md`.
+- **Every CI change is logged** in `docs/ci/EXPERIMENTS.md`. See `docs/adr/every-ci-change-is-documented.md`.
+- **Code, commits, PRs and docs are English**; user-facing copy is pt-BR.
+- **Secrets live in Doppler.**
