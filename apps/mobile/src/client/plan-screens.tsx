@@ -7,9 +7,11 @@ import { Card } from "@12-apps/ui/layout/Card";
 import { Stack } from "@12-apps/ui/layout/Stack";
 import { Heading } from "@12-apps/ui/typography/Heading";
 import { Text } from "@12-apps/ui/typography/Text";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { useCalendarDate } from "./calendar";
 import { CLIENT_COPY, formatNumber } from "./copy";
 import { useClient } from "./context";
+import { useSingleNavigation } from "./navigation";
 import { Muted, Page, Plate, ProviderHeader, SampleNote, SectionTitle, WorkoutCard } from "./components";
 import { beginWorkout, trainingForMember, type Workout } from "./model";
 import { SAMPLE_WEEK, workoutsForTenant } from "./sample-data";
@@ -20,11 +22,11 @@ const plannedSets = (workout: Workout) => workout.exercises.reduce((sum, item) =
 export function HomeScreen() {
   const copy = useLocaleCopy(CLIENT_COPY);
   const { state } = useClient();
-  const router = useRouter();
+  const router = useSingleNavigation();
   const tenant = trainingForMember(state);
   const workouts = workoutsForTenant(state.selectedTenantId);
   const week = SAMPLE_WEEK[state.selectedTenantId]!;
-  const now = new Date();
+  const now = useCalendarDate();
   const todayIndex = (now.getDay() + 6) % 7;
   const today = workouts.find((workout) => workout.id === week[todayIndex]);
   const active = tenant.activeSession;
@@ -63,7 +65,7 @@ export function HomeScreen() {
 
 export function WorkoutsScreen() {
   const copy = useLocaleCopy(CLIENT_COPY);
-  const { state } = useClient(); const router = useRouter();
+  const { state } = useClient(); const router = useSingleNavigation();
   const workouts = workoutsForTenant(state.selectedTenantId);
   const week = SAMPLE_WEEK[state.selectedTenantId]!;
   const volumes = new Map<string, number>();
@@ -80,7 +82,7 @@ export function WorkoutsScreen() {
 
 export function WorkoutScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const { id } = useLocalSearchParams<{ id: string }>();
-  const { state, setState } = useClient(); const router = useRouter();
+  const { state, setState } = useClient(); const router = useSingleNavigation();
   const workout = workoutsForTenant(state.selectedTenantId).find((item) => item.id === id);
   const active = trainingForMember(state).activeSession;
   if (!workout) return <Page testID="gym-unavailable"><EmptyState title={copy.unavailable} description={copy.unavailableHint} primaryAction={{ label: copy.goHome, onClick: () => router.replace("/") }} /></Page>;
@@ -93,9 +95,10 @@ export function WorkoutScreen() {
       <Muted>{exercise.muscle}</Muted><Text size="sm">{exercise.sets} × {exercise.repetitions} · {exercise.executionSeconds}{copy.seconds} {copy.execution} · {exercise.restSeconds}{copy.seconds} {copy.interval}</Text>
       <Text size="sm" weight="semibold">{formatNumber(exercise.suggestedKg)} {copy.suggested}</Text>
     </Stack></Card>)}</Stack>
-    <Button size="lg" onPress={() => {
-      setState((current) => beginWorkout(current, workout, `sample-${Date.now()}`, Date.now())); router.push("/session");
-    }} dataTestId="start-workout">{active ? copy.resume : copy.startWorkout}</Button>
+    <Button size="lg" onPress={() => router.run((currentRouter) => {
+      const now = Date.now();
+      setState((current) => beginWorkout(current, workout, `sample-${now}`, now)); currentRouter.push("/session");
+    })} dataTestId="start-workout">{active ? copy.resume : copy.startWorkout}</Button>
     <Muted>{copy.assignedHint}</Muted>
   </Page>;
 }

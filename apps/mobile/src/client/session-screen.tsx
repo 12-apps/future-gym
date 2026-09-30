@@ -11,15 +11,15 @@ import { Stack } from "@12-apps/ui/layout/Stack";
 import { useUiTheme } from "@12-apps/ui/provider";
 import { Heading } from "@12-apps/ui/typography/Heading";
 import { Text } from "@12-apps/ui/typography/Text";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { CLIENT_COPY, formatClock, formatNumber } from "./copy";
 import { useClient } from "./context";
+import { useSingleNavigation } from "./navigation";
 import { Muted, Page, SectionTitle } from "./components";
 import { commandForTenant, finishSession, remainingMilliseconds, summarizeSession, trainingForMember, type SessionCommand } from "./model";
 
 export function SessionScreen() {
-  const copy = useLocaleCopy(CLIENT_COPY); const theme = useUiTheme(); const router = useRouter();
+  const copy = useLocaleCopy(CLIENT_COPY); const theme = useUiTheme(); const router = useSingleNavigation();
   const { state, setState } = useClient();
   const tenantId = state.selectedTenantId;
   const session = trainingForMember(state).activeSession;
@@ -40,10 +40,10 @@ export function SessionScreen() {
   const phaseLabel = session.paused ? copy.paused : ({ ready: copy.ready, execution: copy.working, rest: copy.resting, "exercise-complete": copy.exerciseDone })[session.phase];
   const summary = summarizeSession(session, now);
   const command = (action: SessionCommand) => setState((current) => commandForTenant(current, tenantId, session.id, action));
-  const finish = (discard = false) => {
+  const finish = (discard = false) => router.run((currentRouter) => {
     setState((current) => finishSession(current, tenantId, session.id, Date.now(), discard)); setConfirmEnd(false);
-    router.replace(discard ? "/" : { pathname: "/summary/[id]", params: { id: session.id } });
-  };
+    currentRouter.replace(discard ? "/" : { pathname: "/summary/[id]", params: { id: session.id } });
+  });
   return <Page testID="gym-session">
     <Stack direction="row" gap={1} align="center" justify="between">
       <Button variant="ghost" onPress={() => router.replace("/")} accessibilityLabel={copy.goHome} icon={<Icon name="ArrowBack" />} />
@@ -58,7 +58,7 @@ export function SessionScreen() {
       <Chip label={phaseLabel} color={phaseColor} size="sm" />
       <Stack direction="row" gap={3} align="center">
         <Progress variant="circular" color={phaseColor} value={session.phase === "ready" || session.phase === "exercise-complete" ? 100 : session.durationMs ? remaining / session.durationMs * 100 : 0} circularSize={theme.spacing(12)} thickness={theme.spacing(0.75)} />
-        <Stack gap={0.5}><Heading level="h2" size="h1" color={phaseColor} dataTestId="session-clock">{session.phase === "exercise-complete" ? "✓" : formatClock(remaining)}</Heading><Text weight="semibold">{copy.set} {session.setIndex + 1} {copy.of} {exercise.sets}</Text></Stack>
+        <Stack gap={0.5}><Heading level="h2" size="h1" color={phaseColor} dataTestId="session-clock">{session.phase === "exercise-complete" ? "✓" : formatClock(remaining)}</Heading><Text weight="semibold">{session.phase === "exercise-complete" ? `${copy.completedSets}: ${logs.filter((set) => set.completed).length}` : `${copy.set} ${session.setIndex + 1} ${copy.of} ${exercise.sets}`}</Text></Stack>
       </Stack>
       {session.phase === "execution" && remaining === 0 ? <Text color="danger" size="sm" accessibilityLiveRegion="polite">{copy.timerEnded}</Text> : null}
       {session.phase === "ready" ? <Button size="lg" onPress={() => command({ type: "start-set", now: Date.now() })} dataTestId="start-set">{copy.startSet}</Button> : null}

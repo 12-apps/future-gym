@@ -41,16 +41,16 @@ All results below use the full-source local UI candidate with SHA-256
 It is not a registry release. Consumer package/lockfile pins remain unchanged,
 so a clean ordinary install still awaits the real shared release.
 
-- Native tests: 86 passed across 10 Android/iOS suites, zero skipped (2026-09-30,
-  9.4 seconds). Includes 32 pure state cases per platform, eight real-router
-  flows per platform, provider/router smoke checks, and a shared theme contract.
+- Native tests: 118 passed across 12 Android/iOS suites, zero skipped (2026-09-30,
+  18.826 seconds). Includes 32 pure state cases per platform, eight real-router
+  flows per platform, 16 navigation/lifecycle regression cases per platform, provider/router smoke checks, and a shared theme contract.
 - Root contracts: 43 passed, zero skipped. The initial foundation-only
   `FOUNDATION_COPY` assertion was updated to the actual `CLIENT_COPY`; the check
   now scans all production sources and pins the shared Screen import and absence
   of WebView/HTML rendering.
 - App lint, typecheck, ADR record validation and diff whitespace checks: passed.
-- Fresh Android Hermes export: 1,405 modules, 8,643 ms Metro, 3,037,040 bytes.
-- Fresh iOS Hermes export: 1,270 modules, 8,153 ms Metro, 2,725,415 bytes.
+- Fresh Android Hermes export: 1,407 modules, 10,101 ms Metro, 3,041,433 bytes.
+- Fresh iOS Hermes export: 1,272 modules, 9,461 ms Metro, 2,729,796 bytes.
 - Both exports were cleared first and verified as nonempty files referenced by
   their platform's Metro metadata. Local export used two Metro workers after an
   unbounded-worker attempt exited without a bundle. That first attempt is not
@@ -68,6 +68,27 @@ so a clean ordinary install still awaits the real shared release.
 
 Renderer tests and Hermes exports establish neither an APK/IPA nor device,
 simulator, signing, store, background-alarm or production acceptance.
+
+## Review corrections
+
+The initial review reproduced six defects: direct-link Back without a fallback,
+a stale daily plan across midnight, missing interactive-card roles, duplicate
+route pushes, duplicate/mixed editor exits, and a completed exercise still
+showing set 1. All six are fixed in this change, with permanent regressions in
+`client-navigation-regressions.test.tsx`.
+
+Navigation now rejects queued duplicate callbacks until the screen is focused
+again, and editor mutation/exit are guarded together. A theme-bound Expo Stack
+retains the selected History tab beneath a summary. The local calendar refreshes
+at midnight and resynchronizes after focus or delayed timer delivery. Cards have
+actionable roles and descriptive labels; completed exercises show completed sets.
+
+Independent fix verification passed the original 22 reproductions and the 32
+permanent regression executions across Android/iOS. No fix-induced regression
+was identified. A larger combined diagnostic invocation was killed without
+assertion output and is not counted as passing; the separate checks and the
+application's full 118-case invocation passed. Runtime/visual acceptance is still
+pending and is not replaced by this source review.
 
 ## Manual acceptance path
 

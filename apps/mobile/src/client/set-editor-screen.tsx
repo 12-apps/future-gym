@@ -6,10 +6,11 @@ import { Card } from "@12-apps/ui/layout/Card";
 import { Stack } from "@12-apps/ui/layout/Stack";
 import { Heading } from "@12-apps/ui/typography/Heading";
 import { Text } from "@12-apps/ui/typography/Text";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { CLIENT_COPY, formatInputNumber } from "./copy";
 import { useClient } from "./context";
+import { useSingleNavigation } from "./navigation";
 import { Muted, Page } from "./components";
 import { commandForTenant, parseSetInput, trainingForMember, type SetLog } from "./model";
 
@@ -34,7 +35,7 @@ function SetEditor({ initial, exerciseName, index, onSave, onCancel }: {
 
 /** A routed Screen keeps keyboard avoidance and native Back semantics shared. */
 export function SetEditorScreen() {
-  const copy = useLocaleCopy(CLIENT_COPY); const router = useRouter();
+  const copy = useLocaleCopy(CLIENT_COPY); const router = useSingleNavigation();
   const { exerciseId, setIndex, sessionId } = useLocalSearchParams<{ exerciseId: string; setIndex: string; sessionId: string }>();
   const { state, setState } = useClient(); const tenantId = state.selectedTenantId;
   const session = trainingForMember(state).activeSession;
@@ -42,8 +43,9 @@ export function SetEditorScreen() {
   const exercise = session?.workout.exercises.find((item) => item.id === exerciseId);
   const initial = session?.logs[exerciseId]?.[index];
   if (!session || session.id !== sessionId || session.userId !== state.userId || !exercise || !initial) return <Page testID="gym-set-unavailable"><EmptyState title={copy.unavailable} description={copy.unavailableHint} primaryAction={{ label: copy.goHome, onClick: () => router.replace("/") }} /></Page>;
-  const back = () => { if (router.canGoBack()) router.back(); else router.replace("/session"); };
-  return <SetEditor key={`${tenantId}:${session.id}:${exerciseId}:${index}`} initial={initial} exerciseName={exercise.name} index={index} onCancel={back} onSave={(values) => {
-    setState((current) => commandForTenant(current, tenantId, session.id, { type: "set-log", exerciseId, setIndex: index, ...values })); back();
-  }} />;
+  const back = () => router.back("/session");
+  return <SetEditor key={`${tenantId}:${session.id}:${exerciseId}:${index}`} initial={initial} exerciseName={exercise.name} index={index} onCancel={back} onSave={(values) => router.run((currentRouter) => {
+    setState((current) => commandForTenant(current, tenantId, session.id, { type: "set-log", exerciseId, setIndex: index, ...values }));
+    if (currentRouter.canGoBack()) currentRouter.back(); else currentRouter.replace("/session");
+  })} />;
 }
