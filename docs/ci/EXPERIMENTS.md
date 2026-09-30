@@ -159,3 +159,34 @@ The first GitHub run is the push that adds this to 12-apps/future-gym#1.
 - **The run:** run 36707923606 (after the permissions fix) completed `success`. Static ran Detect Changes, Lint, Type Check and Actionlint, all success, with Retry Gate skipped since there was no previous failure. Tests ran Unit Plan, Unit Tests and Build, all success, with the integration lanes skipped because this repo declares none. CI Success was success.
 - **Zero tasks, as predicted:** the Lint and Unit Tests logs both read `Tasks: 0 successful, 0 total` ("No tasks were executed"). Until `apps/mobile` exists, green tiers ran nothing.
 - **The root suite in `ci-success`:** `job results: success success`, then `# tests 17 # pass 17 # fail 0`, then `base: merge parent (the base tip this run merged into) · 49 changed path(s) · 3 entries`, then `ok`, then `[adr-index] records ok`.
+
+### E-004 — Validated engine baseline and explicit bootstrap: can green mean real work without an app?
+
+**Status:** Open — 2026-09-30
+
+**Question:** Can this repository consume the validated Future Pay CI safety baseline without claiming that its absent application passed lint, types, tests or build?
+
+**Method:**
+- Start from `main` at `d21964935641c9d742a8702b0b1c3129bb6337b9`, not the already-merged feature branch that remains the repository's default. No repository setting is changed.
+- Pin consumer workflow/action entrypoints to `12-apps/ci@be3300542208ebab5b30a75f58d018518f9d3459` (v2.48.2). The engine's own internal major-tag references remain its release contract; this is not a claim that transitive actions are immutable.
+- Run the real root regression suite on every PR and main push, emit Node JUnit, and call the shared signal guard without a bypass condition. Workflow syntax, the CI documentation rule and ADR records also remain mandatory.
+- Declare `.ci/workspaces.json` as explicit bootstrap state. Unregistered workspaces, missing expected workspaces, invalid manifests and undeclared task entrypoints fail closed. Only an empty declared bootstrap may omit application lanes, with an explicit notice that no app was built or tested. CI descriptor changes require this log too.
+- Prewire application lanes for stack-aware selection, strict PR/full unit commands, JUnit signal guarding and one shard. Whole-tree fingerprints use `git rev-parse 'HEAD^{tree}'`: every tracked input, file mode, global config and document is covered. No app-specific ignore list is guessed.
+- The final check separately validates required repository work and the only allowed application skip states. A failed or cancelled producer cannot be hidden by skipped dependents.
+
+**Result:** Baseline root suite: 17/17 tests, 747.8 ms locally on Node 24.19.0. The expanded root suite has 30 tests, including positive application inventory, unexpected/missing workspace negatives, all aggregate failure/skip states, and complete-tree fingerprint invariants. Hosted run IDs and runner measurements will be appended after the draft PR executes. No app workspace, app build, APK, selective test plan or actual fingerprint cache reuse has been validated yet.
+
+**Why:** E-003's green zero-task tiers provided no application evidence. Skipping explicitly absent work while requiring real repository tests is truthful; fabricating a workspace or a passing build is not. Platform clarification is still pending, so this change does not select React web over the accepted Expo Android architecture. Per-test selection, skip-green shadow measurement and runtime-specific caches must be connected to the actual app runner before they can be claimed.
+
+**Evidence:**
+- GYM-2 tracks this CI-only portion; GYM-1's screenless app foundation is not implemented by it.
+- `.github/workflows/ci.yml`, `.ci/workspaces.json`, `scripts/ci/workspace-contract.mjs`, `scripts/ci/check-results.mjs`.
+- `scripts/__tests__/ci-contract.test.mjs` keeps the configuration assertions consumer-side; signal parsing and cache provenance remain engine-owned.
+
+**Regression watch:**
+- Root JUnit must contain executed test cases. Missing, zero, all-skipped and malformed reports must fail the shared guard; the root command must fail on a failing assertion.
+- Adding `apps/mobile` without registering it and leaving bootstrap must fail; deleting a registered app must fail. The descriptor is not an optional auto-discovery escape hatch.
+- An invalid readiness or code-selection output, failed/cancelled root/static/test job, or unexpected application skip makes `CI Success` red.
+- Application enablement requires the actual app's strict test commands to write fresh workspace JUnit under `reports/junit/workspaces`, plus lint/typecheck/test/build task implementations. A structural inventory alone does not prove those commands execute useful work.
+- On app introduction, validate the chosen runner's real positive/negative selection, unchanged-input reuse, changed-input invalidation and full push safety net. Keep per-test skip-green off until shadow evidence exists.
+- Revert the optimization inputs if their run evidence cannot establish the guard and input-coverage contract; do not retain a green skip as proof of execution.

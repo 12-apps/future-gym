@@ -1,29 +1,12 @@
 name: CI
 
-# The pull-request pipeline, built the way 12-apps/future-pay and
-# 12-apps/base-app build theirs: the ENGINE (12-apps/ci) owns the tiers, this
-# repository owns what is specific to it (memory `ci-engine-or-consumer`).
-#
-#   static    → 12-apps/ci monorepo-static.yml@v2: change filter, turbo
-#               lint/type-check --affected, actionlint.
-#   tests     → 12-apps/ci monorepo-tests.yml@v2: turbo unit tests + build.
-#   ci-success→ the ONLY check a branch rule requires. It aggregates the tiers
-#               and runs this repository's root suite, the same place
-#               future-pay runs its own (`ci-root-suite.mjs` in `ci-success`).
-#
-# Every change to this file lands with an entry in docs/ci/EXPERIMENTS.md
-# (docs/adr/every-ci-change-is-documented.md).
-
 on:
   pull_request:
     branches: [main]
-  # Post-merge full run: every PR lane is incremental (paths filter, turbo
-  # --affected); on push the shared pipeline runs everything.
   push:
     branches: [main]
   workflow_dispatch: {}
 
-# Reusable workflows cannot define workflow-level concurrency; the caller must.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
@@ -33,70 +16,94 @@ permissions:
   pull-requests: read
 
 jobs:
-  static:
-    name: Static
-    # A caller must grant a SUPERSET of what the reusable workflow's jobs
-    # declare, or the whole run dies at startup with no job at all (run
-    # 36707818061, E-003). monorepo-static's retry gate declares
-    # `actions: read`; future-pay grants it for the same reason.
-    permissions:
-      contents: read
-      pull-requests: read # dorny/paths-filter reads the PR's file list
-      actions: read
-    uses: 12-apps/ci/.github/workflows/monorepo-static.yml@v2
-    with:
-      # On a stacked PR, select against the STACK's base, not the layer below
-      # (memory `pr-stacking-rules`). Inert off a stack.
-      stack-aware: true
-
-  tests:
-    name: Tests
-    needs: static
-    if: needs.static.outputs.code == 'true'
-    permissions:
-      contents: read
-    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@v2
-    with:
-      # Must match the static tier: a stack-aware gate feeding a stack-blind
-      # test tier reports green having tested less.
-      stack-aware: true
-
-  # Require ONLY this job in the branch ruleset.
-  #
-  # `static` is listed even though `tests` depends on it: if static FAILS, its
-  # dependents go `skipped`, not `failure`, and an aggregation watching only the
-  # dependents would pass with nothing run.
-  ci-success:
-    name: CI Success
-    if: always()
-    needs: [static, tests]
+  repository-contracts:
+    name: Repository Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
+    outputs:
+      application-ready: ${{ steps.inventory.outputs.application-ready }}
     steps:
-      - name: Verify no required job failed
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          set -euo pipefail
-          echo "job results: $RESULTS"
-          if printf '%s' "$RESULTS" | grep -qwE 'failure|cancelled'; then
-            echo "::error::A required CI job failed or was cancelled."
-            exit 1
-          fi
-      # The root suite: Node builtins only, no install.
       - uses: actions/checkout@v4
         with:
-          # Depth 1 on purpose: the documentation gate reaches the merge
-          # commit's first parent itself (E-002).
           fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Script tests
-        run: node --test "scripts/__tests__/*.test.mjs"
+      - name: Validate explicit workspace inventory
+        id: inventory
+        run: node scripts/ci/workspace-contract.mjs
+      - name: Run real root tests and emit JUnit
+        run: |
+          mkdir -p reports/junit
+          node --test --test-reporter=tap --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=reports/junit/root.xml "scripts/__tests__/*.test.mjs"
+      - name: Require executed root tests
+        uses: 12-apps/ci/.github/actions/vitest-signal-guard@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
+        with:
+          reports: reports/junit/root.xml
+          lane: repository-contracts
       - name: Every CI change is documented
         run: node scripts/ci/ci-change-documented.mjs
       - name: ADR records are well formed
         run: node scripts/adr/render-index.mjs --records
+      # Application static is intentionally not invoked during bootstrap. Keep
+      # workflow syntax checked without starting zero-task application jobs.
+      - name: Lint workflow syntax
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color
+
+  static:
+    name: Static
+    needs: repository-contracts
+    if: needs.repository-contracts.outputs.application-ready == 'true'
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    uses: 12-apps/ci/.github/workflows/monorepo-static.yml@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
+    with:
+      node-version: '22'
+      stack-aware: true
+      # Complete MERGED tree, including modes, globals and documents tests read.
+      # Conservative: no app-specific ignores; engine supplies execution context.
+      lint-fingerprint-command: git rev-parse 'HEAD^{tree}'
+      type-check-fingerprint-command: git rev-parse 'HEAD^{tree}'
+
+  tests:
+    name: Tests
+    needs: [repository-contracts, static]
+    if: needs.repository-contracts.outputs.application-ready == 'true' && needs.static.outputs.code == 'true'
+    permissions:
+      contents: read
+    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
+    with:
+      node-version: '22'
+      stack-aware: true
+      unit-test-command: pnpm run test:ci
+      unit-full-command: pnpm run test:ci:full
+      unit-junit-reports: reports/junit/workspaces
+      unit-fingerprint-command: git rev-parse 'HEAD^{tree}'
+      build-fingerprint-command: git rev-parse 'HEAD^{tree}'
+      # One runner until an actual app workload justifies sharding. Selective
+      # per-test / skip-green inputs require the app's runner and measured plan.
+      unit-shards: 1
+
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [repository-contracts, static, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify real required work and expected skips
+        env:
+          CONTRACTS: ${{ needs.repository-contracts.result }}
+          APPLICATION_READY: ${{ needs.repository-contracts.outputs.application-ready }}
+          STATIC_RESULT: ${{ needs.static.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          CODE: ${{ needs.static.outputs.code }}
+        run: node scripts/ci/check-results.mjs
