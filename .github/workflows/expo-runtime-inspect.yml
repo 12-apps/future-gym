@@ -1,0 +1,28 @@
+name: Inspect Expo runtime evidence
+on:
+  push:
+    branches: [ci/gym-3-expo-go-inspect]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: expo-go-runtime-6857ea1ab9c56302c32575a9e5ac4ea5ede8295c
+          run-id: 36762434620
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Read the exact server and device diagnostics
+        run: |
+          set -euo pipefail
+          for name in metro.log emulator.log acceleration.txt final.xml; do
+            echo "EVIDENCE_BEGIN:$name"
+            if test -f "evidence/$name"; then tail -150 "evidence/$name"; fi
+            echo "EVIDENCE_END:$name"
+          done
