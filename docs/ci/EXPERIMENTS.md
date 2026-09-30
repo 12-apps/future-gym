@@ -100,3 +100,9 @@ The first GitHub run is the PR that adds the workflow (12-apps/future-gym#1).
 - **The failure:** run 36707073096 (job 109859741852, `ubuntu-latest`, git 2.55) failed 1 of 16 tests. The case "CLI: on a pull-request checkout the base is the merge commit's first parent" got `base: origin/main tip (fetched now)`. The `--deepen=1 origin` fetch that finds the merge parent on git 2.43 left the merge commit parentless on git 2.55. The gate then fell back to a base tip fetched later. That fallback can only over-demand an entry, never hide one, but it is not the exact base.
 - **The fix:** when the merge parent is still missing, the gate fetches the merge commit itself with `--depth=2`, which brings its parents in. The runner had already shown a fetch by SHA working in that same test.
 - **The new test:** "…when --deepen leaves the merge commit parentless…" forces that path with `CI_DOC_SKIP_DEEPEN=1`. It fails with the `--depth=2` fetch removed and passes with it. The suite is now 17 tests, and the regression watch count above reads 17.
+
+**Addendum (2026-09-30):** The fix, confirmed on the hosted runner.
+
+- **The run:** run 36707315755 (job 109860525317, `ubuntu-latest`, git 2.55.0) passed 17/17 tests.
+- **The gate's own line:** `[ci-change-documented] base: merge parent (the base tip this run merged into) · 44 changed path(s) · 2 entries in docs/ci/EXPERIMENTS.md` then `ok`, followed by `[adr-index] records ok`.
+- **Still owed:** a follow-up PR that changes a workflow with no entry here, to watch `ci-success` go red on GitHub, not only in the CLI test.
