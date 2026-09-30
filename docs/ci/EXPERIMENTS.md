@@ -355,3 +355,68 @@ Post-merge regeneration's three runner selections are source-verified against
 the same release; its existing missing-token blocker means regeneration execution
 is not claimed. Android identity/device acceptance remains separate, so the app
 PR stays a draft and no app merge, APK install or AWS infrastructure is claimed.
+
+### E-007 — Released full-event guard: does it reject a real all-skipped native push?
+
+**Status:** Confirmed — 2026-09-30
+
+**Question:** Can Future Gym adopt the released engine's push/dispatch/schedule
+JUnit guard without losing its native safeguards or GitHub-hosted runner policy?
+
+**Method:** Pin all entrypoints to
+[v2.49.2](https://github.com/12-apps/ci/releases/tag/v2.49.2), immutable commit
+`dd17e765c6d3799cfc9a3cbeebf3cf640d368908`, after resolving its annotated tag.
+Keep every explicit `runner: ubuntu-latest` and the consumer's JSON execution
+assertions. A bounded, push-only
+[audit branch](https://github.com/12-apps/future-gym/tree/ci/gym-3-full-signal-proof)
+at `4874eddcc4200c53e6987471bca270596185bfcd` adds only an experiment workflow;
+it is outside the application PR and will not merge. Its PR command deliberately
+throws, so accidental selection of the PR path cannot silently pass.
+
+The two negative controls invoke the actual existing Jest suites directly with
+an unmatched test-name filter, producing 4 skipped cases and a successful Jest
+exit. They intentionally bypass the consumer JSON wrapper to isolate the shared
+JUnit guard. The normal old Future Gym full command already rejected all-skipped
+execution through that wrapper; this experiment proves the added central defense.
+The positive control runs the actual `pnpm run test:ci:full` without a filter.
+
+**Result:** Actual push run
+[36750100434](https://github.com/12-apps/future-gym/actions/runs/36750100434)
+produced the required old-success/fixed-failure/fixed-success outcomes:
+- The [old-engine unit job](https://github.com/12-apps/future-gym/actions/runs/36750100434/job/110006276946)
+  passed with 2 skipped suites / 4 skipped cases (13.774 s Jest); its PR-only
+  guard never ran.
+- The [released-engine negative](https://github.com/12-apps/future-gym/actions/runs/36750100434/job/110006270644)
+  also had 2 skipped suites / 4 skipped cases (9.636 s Jest), then failed at the
+  central guard with zero executed test cases. The test command itself succeeded.
+- The [real native full command](https://github.com/12-apps/future-gym/actions/runs/36750100434/job/110006263611)
+  passed 4/4 cases across 2 suites, uncached (14.576 s Jest / 15.451 s task).
+  Both consumer JSON execution validation and central JUnit validation passed;
+  the central guard counted exactly 4 executed cases.
+- The [experiment verifier](https://github.com/12-apps/future-gym/actions/runs/36750100434/job/110006612438)
+  passed. The overall run is intentionally red because its negative lane must
+  fail. All 7 executed jobs used `GitHub Actions` and `ubuntu-latest`.
+
+Local final-pin validation passes 43/43 root cases (812.1 ms), Actionlint and
+whitespace checks. The real native full command freshly executes 4/4 cases,
+zero Turbo hits (1.759 s Jest / 2.580 s task). Final application PR-head CI will
+be linked in the PR description after it completes; no post-merge app run is
+claimed while identity/device acceptance keeps this PR a draft.
+
+**Why:** A successful runner exit with all tests skipped is not executed work.
+This native proof exercises the real push scheduler, Jest's real JUnit shape,
+the released engine's full-command selection and both positive/negative guard
+outcomes. It supplements, rather than replaces, E-005's native execution checks
+and E-006's explicit hosted-runner policy.
+
+**Evidence:** The linked push jobs, `.github/workflows/ci.yml`, the matching
+consumer contract pin and `BOOTSTRAP.md`. The isolated experiment workflow is
+not in the application PR. Previous E-005/E-006 statements that the central
+full-event guard was pending describe their earlier release state; v2.49.2
+resolves that dependency without removing the native JSON guard.
+
+**Regression watch:** Both PR/full native commands must keep producing fresh or
+properly cache-restored JSON/JUnit evidence. A full event cannot use a PR label
+bypass or treat skipped cases as execution. All public runner overrides remain
+mandatory, no AWS/S3/external cache wiring is added, and Android bundle success
+still does not establish APK/device acceptance.

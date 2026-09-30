@@ -26,10 +26,11 @@ In the same PR as the app:
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
-   At engine v2.49.0 the reusable application JUnit guard is PR-only. The
-   native Jest wrapper and root runner explicitly reject zero/all-skipped JSON
-   results on both paths, including cached full runs; a newer central guard is
-   defense in depth rather than permission to remove that execution assertion.
+   Engine v2.49.2 runs the configured JUnit guard on PR, push, dispatch and
+   scheduled runs. The native Jest wrapper and root runner independently reject
+   zero/all-skipped JSON results on both paths, including cached full runs.
+   The central guard is defense in depth, not permission to remove that native
+   execution assertion.
 4. Configure the runner's JUnit reporter and Turbo outputs so cached test tasks
    restore their reports. Add actual build outputs and all root configuration,
    runtime and environment inputs that can change task results.
@@ -46,8 +47,8 @@ In the same PR as the app:
 8. Append actual run IDs, executed counts, cache evidence and both positive and
    negative outcomes to `EXPERIMENTS.md`. Verify full post-merge execution.
 
-Consumer entrypoints use engine v2.49.0 commit
-`ea88024608cb8c9f5ce8fe655fb64e6866bbf469`. Internal engine actions still resolve
+Consumer entrypoints use engine v2.49.2 commit
+`dd17e765c6d3799cfc9a3cbeebf3cf640d368908`. Internal engine actions still resolve
 through its supported major references. Secrets and deployment are not added by
 this bootstrap; the existing ADR-index job still needs its separately configured
 `RENOVATE_TOKEN`.

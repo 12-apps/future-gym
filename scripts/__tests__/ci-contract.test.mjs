@@ -112,7 +112,7 @@ test("full-tree fingerprint preserves modes, runtime config, docs and base input
 });
 test("workflow wires real root evidence, strict skips, validated engine and safe future app inputs", () => {
   const workflow = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
-  const pin = "ea88024608cb8c9f5ce8fe655fb64e6866bbf469";
+  const pin = "dd17e765c6d3799cfc9a3cbeebf3cf640d368908";
   assert.match(workflow, /node --test --test-reporter=tap --test-reporter=junit/);
   assert.match(workflow, new RegExp(`vitest-signal-guard@${pin}`));
   assert.match(workflow, /reports: reports\/junit\/root.xml/);

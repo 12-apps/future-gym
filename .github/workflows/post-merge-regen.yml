@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@ea88024608cb8c9f5ce8fe655fb64e6866bbf469 # v2.49.0
+    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@dd17e765c6d3799cfc9a3cbeebf3cf640d368908 # v2.49.2
     with:
       # Public repository: generation and token-holding jobs stay GitHub-hosted.
       runner: ubuntu-latest
