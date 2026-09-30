@@ -32,6 +32,9 @@ jobs:
       - name: Install official emulator components without accepting new licenses
         run: |
           set -euo pipefail
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)
+          test -x "$SDKMANAGER"
+          export PATH="$(dirname "$SDKMANAGER"):$PATH"
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
           printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5
       - name: Boot, drive and capture the native shell
