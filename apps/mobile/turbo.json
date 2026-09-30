@@ -1,0 +1,7 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": { "outputs": ["reports/junit.xml", "reports/results.json", "coverage/**"] },
+    "build": { "outputs": ["dist/**"] }
+  }
+}

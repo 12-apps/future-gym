@@ -2,13 +2,13 @@
 
 The gym app for the MVP epic [GYM-1](https://linear.app/12-apps/issue/GYM-1/mvp-future-gym): an Android app (Expo + `@12-apps/ui`) where a person runs this week's plan with a set/rest timer, logs loads, checks weekly volume per muscle group, and competes with a training partner.
 
-This repository is a pnpm + turbo monorepo on the `12-apps/base-app` conventions. It has no workspaces yet; `apps/mobile` arrives with GYM-1 story 0.
+This repository is a pnpm + turbo monorepo on the `12-apps/base-app` conventions. `apps/mobile` is the screenless Expo/React Native Android foundation; the workout MVP remains separate work.
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| `apps/*`, `packages/*` | Workspaces (none yet). |
+| `apps/mobile` | Screenless Expo SDK 57 app, shared UI/locale providers, router and native tests. |
 | `docs/adr/` | Architecture decisions. Unnumbered; the index is generated after each merge. |
 | `docs/ci/EXPERIMENTS.md` | Append-only log of every CI change. A CI change without an entry fails `ci-success`. |
 | `scripts/` | Root scripts: the CI documentation gate, the ADR index, their tests. |
@@ -33,4 +33,4 @@ node scripts/adr/render-index.mjs --records  # validate the ADRs
 
 ## CI status and application activation
 
-The repository is explicitly in bootstrap mode: real root regression tests run, but no application is built or tested yet. An app cannot silently enter or disappear from CI: `.ci/workspaces.json` must match the real workspace inventory. See [CI bootstrap and application activation](docs/ci/BOOTSTRAP.md) for the strict test, JUnit, build and optimization contracts the first app must supply.
+The explicit workspace inventory registers `apps/mobile`. Root contracts and actual application lint, typecheck, native tests and Android bundle build are required. PR and full unit paths run the same small native suite, reject zero/all-skipped execution and preserve JSON/JUnit reports through Turbo caching. See [the mobile setup](apps/mobile/README.md) and [CI activation contracts](docs/ci/BOOTSTRAP.md). An Android bundle is not an APK or proof of a device install.

@@ -198,3 +198,38 @@ The first GitHub run is the push that adds this to 12-apps/future-gym#1.
 **Addendum (2026-09-30):** Restored-code validation [36728281249](https://github.com/12-apps/future-gym/actions/runs/36728281249), commit `7a12014df562203abbb462ce028a4c0934b3352d`, passed: 32/32 actual root cases in 720.1 ms, JUnit signal 32, root baseline 32, workflow lint, documentation and ADR checks. `CI Success` was green with both application calls explicitly skipped. The experiment's all-skipped runner substitution is absent from this commit. Local frozen workflow-schema comparison confirms all 5 static and 8 test inputs are declared by v2.48.2. Consumer peer review found no bootstrap/aggregate blocker; the application full-push guard limitation is explicitly recorded in `BOOTSTRAP.md` and must be resolved before app activation.
 
 **Addendum (2026-09-30):** Existing post-merge regeneration remains separately blocked by a missing PR token. This predates this PR: main commit `d21964935641c9d742a8702b0b1c3129bb6337b9`, run [36711353985](https://github.com/12-apps/future-gym/actions/runs/36711353985), job `109873754341`, failed with `post-merge-regen: pr-token is required; a PR opened with GITHUB_TOKEN never gets its checks`. This port does not create or transmit credentials, change auto-merge/security settings, or claim to have fixed that existing blocker. The separately successful CI run for that same baseline is `36711354172`.
+
+### E-005 — Expo foundation: can the application lanes prove actual native work?
+
+**Status:** Open — 2026-09-30
+
+**Question:** After explicit confirmation of Expo/React Native Android, can the first screenless app execute real lint, typechecking, native tests and an Android bundle, with strict execution evidence on both PR and full runs?
+
+**Method:**
+- Add only `apps/mobile` on Expo SDK 57, React Native 0.86.3, React 19.2.3 and expo-router. Native appearance comes from `@12-apps/ui` deep imports; locale comes from `@12-apps/i18n`. No workout features or backend are added.
+- Activate the explicit workspace inventory. Keep the root contracts mandatory and the sole native workspace's test set full: no unverified Vitest plan is applied to Jest.
+- The native Jest wrapper removes stale reports, executes the actual native-renderer tests, emits JSON plus JUnit and rejects missing, failed or all-skipped execution. Both root PR/full commands call the same real workspace task and revalidate its execution evidence.
+- Turbo declares BOTH native JSON and JUnit reports as outputs. The root runner removes the report directory before every invocation, so a cache hit must restore evidence rather than accidentally reusing old local files. Root CI, inventory and TypeScript inputs participate in Turbo's global hash.
+- Keep conservative complete-tree fingerprints. Per-test skip-green remains off until a native-compatible selection/execution contract is measured. A fast three-case native setup does not justify extra shards.
+
+**Result:** Work in progress. The expanded root contract suite currently passes 35/35 locally. Dependency installation, real native renderer tests, Android bundle compilation, cache restoration, deliberate failures and hosted workflow evidence must be measured before application acceptance. No APK, emulator/device boot, signing or distribution is claimed by the root checks.
+
+**Why:** Bootstrap green only proved repository contracts. Enabling application jobs requires observable application work. Jest can exit successfully when all tests are skipped, so the JSON execution guard runs inside its task on every event; the shared JUnit guard remains a second independent check. A report from an earlier invocation is not proof of this run unless the exact task cache restores it.
+
+**Evidence:** GYM-3; `apps/mobile`, `scripts/ci/run-mobile-tests.mjs`, `scripts/__tests__/mobile-foundation.test.mjs`, `.ci/workspaces.json`, and `.github/workflows/ci.yml`.
+
+**Regression watch:**
+- App source imports no raw React Native/visual primitives; lint must reject a forbidden import, including type-only imports.
+- Missing tests, all-skipped tests and a failing assertion must fail both direct and full CI unit paths.
+- Cold and warm Turbo runs must account for actual test cases and restore JSON/JUnit outputs; changing a runtime/CI/global input must invalidate prior evidence.
+- Android export must emit a nonempty bundle. Bundle compilation, APK compilation, emulator/device execution and distribution are separate evidence, never synonyms.
+- No permanent Android package identity, credentials, signing or distribution destination is guessed. The package identifier remains a user decision.
+- The final head must pass real hosted application lint, typecheck, tests and build, plus the root gates. Revert any optimization whose positive/negative experiment cannot establish safe execution.
+
+**Addendum (2026-09-30):** Local application evidence is now real: lint and types pass; two Jest suites execute 4/4 cases including the actual Expo router boot and published native shared UI, locale and repeated mount/unmount. The Android export produced a 2,690,029-byte Hermes bundle; a build wrapper now clears stale output and asserts a nonempty Android bundle from Metro metadata. Missing, empty, directory-valued and escaping artifacts are permanent negatives. Root contracts pass 36/36.
+
+**Addendum (2026-09-30):** Negative and cache measurements: a deliberately wrong native assertion failed 1/4 cases and exited 1, an unmatched test-file selection exited 1, and a name filter skipping all 4 tests exited 1 through the consumer JSON guard despite Jest's successful all-skipped exit. All mutations were restored. Both a direct type import and a CommonJS require of `react-native` fail the actual zero-warning lint command. Turbo first executed one real native task (0/1 hits, 2.370 s task time); a full-command repeat restored both removed JSON/JUnit reports (1/1 hits, 19 ms task time, 0.818 s whole command). A temporary change to the root CI runner invalidated the task (0/1 hits, 2.343 s task time, 3.105 s whole command). The root input probe was restored too. Cache-hit logs are historical evidence, not a claim of re-execution.
+
+**Addendum (2026-09-30):** Setup findings: the first native run failed because Babel's generated helper import needed an explicit `@babel/runtime` dependency, and router boot required transforming its ESM navigation packages under pnpm. Both are fixed rather than mocked away. Exact SDK-compatible peer pins replace drifted optional-peer versions for Expo constants/runtime, native Metro, reanimated and worklets. The lockfile is frozen-installable. The published UI package's only blocked lifecycle is its `npx only-allow pnpm` preinstall guard; its prebuilt native exports were actually rendered and bundled without executing that lifecycle. No package build script was broadly enabled.
+
+**Addendum (2026-09-30):** Verification boundary: the cloud browser refused the local preview with `net::ERR_BLOCKED_BY_CLIENT`; no alternate route was used. This executor has no Android SDK/adb or `/dev/kvm`. Router render tests and Android compilation are verified, but browser screenshots, Android device/emulator installation and APK distribution are not. Final Android app name/package identity remain user decisions. Hosted application CI and repeat-input provenance experiments are still pending.

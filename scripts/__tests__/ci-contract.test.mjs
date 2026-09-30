@@ -118,7 +118,7 @@ test("workflow wires real root evidence, strict skips, validated engine and safe
   assert.match(workflow, /reports: reports\/junit\/root.xml/);
   assert.match(workflow, /needs: \[repository-contracts, static, tests\]/);
   assert.match(workflow, /run: node scripts\/ci\/check-results.mjs/);
-  assert.match(workflow, /unit-junit-reports: reports\/junit\/workspaces/);
+  assert.match(workflow, /unit-junit-reports: apps\/mobile\/reports\/junit.xml/);
   assert.match(workflow, /unit-full-command: pnpm run test:ci:full/);
   assert.equal((workflow.match(/stack-aware: true/g) || []).length, 2);
   assert.equal((workflow.match(/fingerprint-command: git rev-parse 'HEAD\^\{tree\}'/g) || []).length, 4);

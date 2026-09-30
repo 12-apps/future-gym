@@ -1,15 +1,17 @@
 # CI bootstrap and application activation
 
 `Repository Contracts` always runs real root tests, checks nonzero JUnit signal,
-lints workflow syntax and validates the documentation and ADR rules. During the
-explicit `.ci/workspaces.json` bootstrap state, no application has been built or
-tested. `CI Success` reports that limitation. It is not MVP acceptance.
+lints workflow syntax and validates the documentation and ADR rules. The first
+app now registers `apps/mobile` in application mode. Its lint, types, native
+tests and Android bundle are application evidence; they are not MVP acceptance.
+An explicitly empty bootstrap remains supported for a new repository, with
+application jobs reported as not run rather than green zero-task work.
 
 ## Add the actual application
 
-Resolve the React-web versus existing Expo-Android request before scaffolding.
-The accepted UI ADR remains binding. The Android package identifier, app name
-and distribution decision are still open in GYM-1; do not invent them here.
+The confirmed platform is Expo/React Native Android. The accepted UI ADR remains
+binding. Permanent Android identity and distribution decisions must come from
+the user; never invent a package identifier or signing setup.
 
 In the same PR as the app:
 
@@ -24,9 +26,10 @@ In the same PR as the app:
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
-   At engine v2.48.2 the reusable application JUnit guard is PR-only: the
-   full command must separately reject zero/all-skipped results, or activation
-   must consume a validated engine release that checks them on push too.
+   At engine v2.48.2 the reusable application JUnit guard is PR-only. The
+   native Jest wrapper and root runner explicitly reject zero/all-skipped JSON
+   results on both paths, including cached full runs; a newer central guard is
+   defense in depth rather than permission to remove that execution assertion.
 4. Configure the runner's JUnit reporter and Turbo outputs so cached test tasks
    restore their reports. Add actual build outputs and all root configuration,
    runtime and environment inputs that can change task results.

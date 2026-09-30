@@ -95,7 +95,7 @@ jobs:
       stack-aware: true
       unit-test-command: pnpm run test:ci
       unit-full-command: pnpm run test:ci:full
-      unit-junit-reports: reports/junit/workspaces
+      unit-junit-reports: apps/mobile/reports/junit.xml
       unit-fingerprint-command: git rev-parse 'HEAD^{tree}'
       build-fingerprint-command: git rev-parse 'HEAD^{tree}'
       # One runner until an actual app workload justifies sharding. Selective

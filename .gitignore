@@ -21,3 +21,9 @@ coverage/
 
 # CI evidence is uploaded/reported by the run, never committed.
 reports/
+
+# Expo/native generated output
+.expo/
+android/
+ios/
+expo-env.d.ts
