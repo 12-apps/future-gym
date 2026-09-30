@@ -25,7 +25,7 @@ the diff. Before code: split the TASK into checkable items, show me the list.
 Unclear: ask, don't guess.
 
 ## 1. Before
-No ticket? Create one, body = the TASK (`docs/TASK-MODEL.md`; search first,
+No ticket? Create one in Linear under the `GYM` team, body = the TASK (search first,
 review the draft adversarially — memory `ticket-adversarial-review`). Tests
 cover the changed behaviour AND the error paths. Push freely; do NOT open the
 PR. Scope freezes here: an outside idea is a follow-up, not a commit.
@@ -56,15 +56,15 @@ No answer, or I am not around? File it anyway, with the question under an
 visible. A ticket that hides an assumption reads as complete and fails review
 weeks later; a ticket that names its gap gets unblocked in one reply.
 
-**Defect ticket? Attach the State API payload that reproduces it** as a
-`reproduction-state.json` file, linked from a `## Reproduction state` heading —
-the upload recipe is in memory `state-api-over-reseed`. A FILE, not a fenced
-block in the body: the daily reproduction pass fetches it and POSTs it
-byte-for-byte, and one copy cannot drift from a second one pasted inline. You
-had the app in that state; the next reader does not, and a payload gets the bug
-reproduced where prose gets it guessed at. Cannot express the state through the
-API? Say that in the ticket, naming what it depends on — that is a finding, not
-a gap to leave silent.
+**Defect ticket? Attach the state that reproduces it.** future-gym keeps its
+data on the device (the prototype in `localStorage`), so attach it as a
+`reproduction-state.json` file (the exported store), linked from a
+`## Reproduction state` heading. A FILE, not a fenced block in the body: one
+copy cannot drift from a second one pasted inline. You had the app in that
+state; the next reader does not, and a payload gets the bug reproduced where
+prose gets it guessed at. Cannot express the state as data? Say that in the
+ticket, naming what it depends on — that is a finding, not a gap to leave
+silent.
 
 ## 1.1 ADR check — before the first edit
 `docs/adr/` holds the decisions that are binding until superseded
@@ -78,28 +78,29 @@ narrow the TASK either — which way it goes is mine to decide, not yours.
 
 **If I approve, the ADR moves in the SAME PR — never a follow-up.** A decision
 is never edited in place (`docs/adr/README.md`): write a NEW
-`docs/adr/draft-<slug>.md` (H1 `# Draft — <Title>`, its `Lane` and
-`Summary` paragraphs, the sections, cited); set the old record's Status to
-`Superseded by [draft-<slug>](./draft-<slug>.md)`. Do NOT number it
-and do NOT touch the README table — the post-merge job does both (FUT-3073),
-and `adr-numbering` refuses a PR that does either. No approval, no code.
+`docs/adr/<slug>.md` (H1 `# <Title>`, its `Status`, `Lane` and `Summary`
+paragraphs, the sections, cited); set the old record's Status to
+`Superseded by [<slug>](./<slug>.md)`. Records are NEVER numbered, and the
+README table is NEVER edited by hand — `scripts/post-merge-regen.mjs` renders
+it after the merge, and `node scripts/adr/render-index.mjs --check` refuses a
+numbered or malformed record. No approval, no code.
 
 No ADR touches your change: say so in one clause and carry on.
 
 ## 2. Run gate — mandatory, no attempt limit
 Before any review or merge:
 - Boot, and show each §0 item on screen end to end — client sends, server
-  receives, screen shows it. Half-wired fails. Boot: `verify` skill. A URL I can
-  open: `run-server` skill, `docs/RUN-SERVER.md`.
+  receives, screen shows it. Half-wired fails. Boot: the `run` skill (the
+  prototype: `python3 -m http.server`, see `README.md`). A URL I can open: an
+  Artifact or a tunnel to that server.
 - Drive every control, the save, and the error path.
 - **Screenshot as you go, into the scratchpad** — one per §0 item, plus the
   error path and each state that changes what is shown. They are §10(a)'s
   evidence and §10(e) PRINTS them in the final message; see §10. Taking them at
   the end, from memory, means re-booting a stack you have already torn down.
 - No new console or server-log error or warning.
-- CI green (`docs/ci/TEST-SELECTION.md`, `docs/ci/QUALITY-GATES.md`). Screens
-  also pass the six widths in `docs/RESPONSIVE.md` — `viewport-screenshots.mjs`
-  fails a width on horizontal overflow.
+- CI green, once the repo has CI (it has none yet). Screens also pass phone
+  width (390 px) and a desktop width with no horizontal overflow.
 
 Error text on screen IS a failure. Never blame geocoder, network or data
 without a log line proving it. A runtime error has no round count, no follow-up, and is
@@ -268,7 +269,8 @@ a §6 STOP. Craft: memory `ticket-adversarial-review`.
 5. No remote asset — inline SVG or data URI.
 6. States: loading, empty, error, disabled, keyboard focus.
 
-Not listed = NON-BLOCKING. Items 1–3 in repo form: `docs/UI.md`.
+Not listed = NON-BLOCKING. Items 1–3 in repo form:
+`docs/adr/appearance-comes-only-from-12-apps-ui.md`.
 `@12-apps/ui`'s `components-guidelines.md` is for AUTHORING in that package, not
 consuming in an app.
 
@@ -298,7 +300,7 @@ breaker you have learned to step past does not fire on the thing it is for.
 Open only on gate green + both reviews done — ready for review, not draft (the
 gate replaces `CLAUDE.md`'s draft phase). A cap never leaves an introduced bug for a
 follow-up (§3 rule zero). Stack with `gh stack`, never ad-hoc `--base` — zero check
-runs (`docs/ci/PULL-REQUESTS.md`). The review bot comments after
+runs (memory `pr-stacking-rules`). The review bot comments after
 opening and is NOT bound by the closed list: classify with §3, fix blocking,
 answer the rest. Merge on gate green + reviews done + CI green + no conflict +
 **ZERO KNOWN REGRESSIONS INTRODUCED BY THE PR** + tickets filed ONLY for
@@ -308,8 +310,9 @@ override it, and neither does "merge when green".** A cap never skips the gate. 
 merge stop watching; PR idle >24h: stop, tell me.
 
 ## 8. Full suite
-Never post-merge. Daily 08:00 BRT, only if `main` merged in 24h (FUT-1501,
-`docs/ci/TEST-SELECTION.md`) — no merge, no run, for weeks. On a PR: diff subset
+Never post-merge. Daily 08:00 BRT, only if `main` merged in 24h (the rule
+future-pay adopted in FUT-1501; this repo has no scheduled suite yet) — no
+merge, no run, for weeks. On a PR: diff subset
 only. Daily suite red: ticket, tell me.
 
 ## 9. Ingrid's QA is POST-MERGE

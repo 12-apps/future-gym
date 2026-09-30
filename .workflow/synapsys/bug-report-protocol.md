@@ -13,7 +13,7 @@ inject: full
 When I hand you a bug report, do these steps in order. Each one ends in something you can point to.
 
 1. **Reproduce it, and say HOW you did it.** A live reproduction beats a code trace:
-   use the `verify` skill and set state through the State API (never reseed).
+   use the `run` skill and load the reported state as data (never rebuild it by hand).
    If you only traced the code, say so plainly: "reproduced by code trace; the
    numbers match to the cent". Never write "reproduced" for a code trace.
    Check the report's own claims as well. Reports get the mechanism wrong
@@ -42,9 +42,9 @@ When I hand you a bug report, do these steps in order. Each one ends in somethin
    State the severity and the one-line reason it gets that rating.
 
 5. **Regression tests.** Write tests that FAIL on today's code and PASS after
-   the fix. Show both runs. Put them where the bug lives: integration
-   (PGlite, `docs/INTEGRATION.md`) for server behaviour, and a unit test for
-   what the screen shows. Cover the error paths too. In tripwire suites, ADD
+   the fix. Show both runs. Put them where the bug lives: a unit test for the
+   logic (plan, volume, duel, timer) and a component test for what the screen
+   shows. Cover the error paths too. In tripwire suites, ADD
    cases; never edit an existing assertion.
 
 6. **Deliver** through `task-delivery-protocol`, which is the merge protocol:
