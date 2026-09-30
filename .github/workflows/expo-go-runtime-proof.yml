@@ -12,6 +12,9 @@ jobs:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_CACHE: '1'
+      ANDROID_USER_HOME: ${{ runner.temp }}/gym-android
+      ANDROID_EMULATOR_HOME: ${{ runner.temp }}/gym-android
+      ANDROID_AVD_HOME: ${{ runner.temp }}/gym-android/avd
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,11 +35,14 @@ jobs:
       - name: Install official emulator components without accepting new licenses
         run: |
           set -euo pipefail
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)
           test -x "$SDKMANAGER"
           export PATH="$(dirname "$SDKMANAGER"):$PATH"
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
-          printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5
+          printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5 --path "$ANDROID_AVD_HOME/gym-proof.avd"
+          avdmanager list avd
+          find "$ANDROID_USER_HOME" -maxdepth 3 -name '*.ini' -print
       - name: Allow this temporary runner to use Android acceleration
         if: runner.environment == 'github-hosted'
         run: |

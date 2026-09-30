@@ -18,18 +18,20 @@ cleanup() {
 
 trap cleanup EXIT
 
-# Observe existing hypervisor access. Never change KVM permissions or security.
+# Require the hypervisor access prepared by this disposable job.
 if emulator -accel-check > "$OUT/acceleration.txt" 2>&1; then
   ACCEL=auto
 else
   cat "$OUT/acceleration.txt"
   id
   ls -l /dev/kvm || true
-  echo 'The runtime proof requires usable acceleration after the software boot attempt exceeded its window. No host permissions were changed.'
+  echo 'Acceleration is not usable; stopping before the native runtime proof.'
   exit 77
 fi
 cat "$OUT/acceleration.txt"
-echo "Using acceleration=$ACCEL without changing host settings"
+echo "Using acceleration=$ACCEL for this disposable runtime job"
+emulator -list-avds | tee "$OUT/avd-list.txt"
+grep -qx gym-proof "$OUT/avd-list.txt"
 emulator -avd gym-proof -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
 EMULATOR_PID=$!
 export EMULATOR_PID
