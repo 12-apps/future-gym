@@ -12,9 +12,6 @@ jobs:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_CACHE: '1'
-      ANDROID_USER_HOME: ${{ runner.temp }}/gym-android
-      ANDROID_EMULATOR_HOME: ${{ runner.temp }}/gym-android
-      ANDROID_AVD_HOME: ${{ runner.temp }}/gym-android/avd
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,6 +29,14 @@ jobs:
           node -e "const x=require(process.env.GITHUB_WORKSPACE+'/runtime-evidence/expo-go-versions.json'); if(!x.versions.some(v=>v.sdkVersion===57)) throw new Error('No stable SDK 57 Expo Go build is available');"
           npx --yes expo-go@0.2.0 download android 57 --json > "$GITHUB_WORKSPACE/runtime-evidence/expo-go-download.json"
           cat "$GITHUB_WORKSPACE/runtime-evidence/expo-go-versions.json"
+      - name: Configure isolated Android emulator homes
+        run: |
+          {
+            echo "ANDROID_USER_HOME=$RUNNER_TEMP/gym-android"
+            echo "ANDROID_EMULATOR_HOME=$RUNNER_TEMP/gym-android"
+            echo "ANDROID_AVD_HOME=$RUNNER_TEMP/gym-android/avd"
+          } >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gym-android/avd"
       - name: Install official emulator components without accepting new licenses
         run: |
           set -euo pipefail
