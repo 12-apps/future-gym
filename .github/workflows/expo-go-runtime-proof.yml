@@ -37,6 +37,14 @@ jobs:
           export PATH="$(dirname "$SDKMANAGER"):$PATH"
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
           printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5
+      - name: Allow this temporary runner to use Android acceleration
+        if: runner.environment == 'github-hosted'
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = runner
+          getfacl -p /dev/kvm > "$RUNNER_TEMP/kvm-before.acl"
+          sudo setfacl -m u:runner:rw /dev/kvm
+          getfacl -p /dev/kvm
       - name: Boot, drive and capture the native shell
         run: bash .ci/qa/expo-go-runtime.sh
       - name: Preserve runtime evidence
@@ -58,3 +66,9 @@ jobs:
             echo
             echo 'SCREENSHOT_END'
           done
+      - name: Restore this job's original virtualization permissions
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/kvm-before.acl"; then
+            sudo setfacl --restore="$RUNNER_TEMP/kvm-before.acl"
+          fi
