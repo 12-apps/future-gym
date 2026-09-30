@@ -1,4 +1,4 @@
-const { readFileSync, statSync } = require("node:fs");
+const { readFileSync, lstatSync } = require("node:fs");
 const path = require("node:path");
 
 function assertAndroidExport(directory) {
@@ -8,7 +8,7 @@ function assertAndroidExport(directory) {
   if (metadata.bundler !== "metro" || typeof bundle !== "string" || !bundle) throw new Error("Export has no Android Metro bundle");
   const file = path.resolve(root, bundle);
   if (!file.startsWith(`${root}${path.sep}`)) throw new Error("Android bundle escapes the export directory");
-  const stat = statSync(file);
+  const stat = lstatSync(file);
   if (!stat.isFile() || stat.size < 1) throw new Error("Android bundle is empty or not a file");
   return { bundle, bytes: stat.size };
 }

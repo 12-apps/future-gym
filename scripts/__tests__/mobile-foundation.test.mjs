@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import androidExport from "../../apps/mobile/scripts/android-export.cjs";
@@ -45,6 +45,8 @@ test("Android build evidence rejects missing, empty and escaping bundle output",
     metadata("entry.hbc"); assert.throws(() => androidExport.assertAndroidExport(root));
     writeFileSync(join(root, "entry.hbc"), ""); assert.throws(() => androidExport.assertAndroidExport(root), /empty/);
     writeFileSync(join(root, "entry.hbc"), "bundle bytes"); assert.equal(androidExport.assertAndroidExport(root).bytes, 12);
+    symlinkSync(join(root, "entry.hbc"), join(root, "linked.hbc"));
+    metadata("linked.hbc"); assert.throws(() => androidExport.assertAndroidExport(root), /not a file/);
     metadata("../outside.hbc"); assert.throws(() => androidExport.assertAndroidExport(root), /escapes/);
     metadata("directory"); mkdirSync(join(root, "directory")); assert.throws(() => androidExport.assertAndroidExport(root), /not a file/);
   } finally { rmSync(root, { recursive: true, force: true }); }

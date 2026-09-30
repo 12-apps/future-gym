@@ -22,11 +22,11 @@ In the same PR as the app:
 2. Give each workspace real `lint`, `check-types`, `test` and `build` scripts.
    Do not use success-only placeholders or `--passWithNoTests` as acceptance.
 3. Implement root `test:ci` and `test:ci:full`. Both must run actual workspace
-   tests and produce fresh JUnit XML under `reports/junit/workspaces`.
+   tests and produce fresh JUnit XML at `apps/mobile/reports/junit.xml` for the current native workspace.
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
-   At engine v2.48.2 the reusable application JUnit guard is PR-only. The
+   At engine v2.48.3 the reusable application JUnit guard is PR-only. The
    native Jest wrapper and root runner explicitly reject zero/all-skipped JSON
    results on both paths, including cached full runs; a newer central guard is
    defense in depth rather than permission to remove that execution assertion.
@@ -46,8 +46,8 @@ In the same PR as the app:
 8. Append actual run IDs, executed counts, cache evidence and both positive and
    negative outcomes to `EXPERIMENTS.md`. Verify full post-merge execution.
 
-Consumer entrypoints use engine v2.48.2 commit
-`be3300542208ebab5b30a75f58d018518f9d3459`. Internal engine actions still resolve
+Consumer entrypoints use engine v2.48.3 commit
+`102a864b440ced7f94ac92136d7dd44962137016`. Internal engine actions still resolve
 through its supported major references. Secrets and deployment are not added by
 this bootstrap; the existing ADR-index job still needs its separately configured
 `RENOVATE_TOKEN`.

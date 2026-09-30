@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
+    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@102a864b440ced7f94ac92136d7dd44962137016 # v2.48.3
     with:
       command: node scripts/post-merge-regen.mjs
       title: 'chore(docs): regenerate the ADR index'
