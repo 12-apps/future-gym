@@ -1,0 +1,52 @@
+name: Native full-push signal proof
+on:
+  push:
+    branches: [ci/gym-3-full-signal-proof]
+permissions:
+  contents: read
+jobs:
+  old-all-skipped:
+    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@ea88024608cb8c9f5ce8fe655fb64e6866bbf469
+    with:
+      runner: ubuntu-latest
+      node-version: '22'
+      run-build: false
+      unit-test-command: "node -e \"throw new Error('PR command must not run on push')\""
+      unit-full-command: pnpm --dir apps/mobile exec jest --ci --runInBand --testNamePattern=^ci-proof-no-match$
+      unit-junit-reports: apps/mobile/reports/junit.xml
+  fixed-all-skipped:
+    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@dd17e765c6d3799cfc9a3cbeebf3cf640d368908
+    with:
+      runner: ubuntu-latest
+      node-version: '22'
+      run-build: false
+      unit-test-command: "node -e \"throw new Error('PR command must not run on push')\""
+      unit-full-command: pnpm --dir apps/mobile exec jest --ci --runInBand --testNamePattern=^ci-proof-no-match$
+      unit-junit-reports: apps/mobile/reports/junit.xml
+  fixed-native-full:
+    uses: 12-apps/ci/.github/workflows/monorepo-tests.yml@dd17e765c6d3799cfc9a3cbeebf3cf640d368908
+    with:
+      runner: ubuntu-latest
+      node-version: '22'
+      run-build: false
+      unit-test-command: "node -e \"throw new Error('PR command must not run on push')\""
+      unit-full-command: pnpm run test:ci:full
+      unit-junit-reports: apps/mobile/reports/junit.xml
+  verify-experiment:
+    if: always()
+    needs: [old-all-skipped, fixed-all-skipped, fixed-native-full]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the expected native push outcomes
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const jobs = JSON.parse(process.env.NEEDS);
+          assert.equal(jobs['old-all-skipped'].result, 'success');
+          assert.equal(jobs['fixed-all-skipped'].result, 'failure');
+          assert.equal(jobs['fixed-native-full'].result, 'success');
+          console.log('Verified: the old full push accepts zero native execution; the fixed guard rejects it and accepts the actual native full suite.');
+          NODE
