@@ -15,7 +15,8 @@ In the same PR as the app:
 
 1. Set the descriptor's mode to `application` and list every `apps/<name>` and
    `packages/<name>` workspace. An unregistered, lost or malformed workspace
-   fails the repository gate instead of suppressing a lane.
+   fails the repository gate instead of suppressing a lane. Changing the pnpm
+   workspace globs also requires updating the inventory implementation.
 2. Give each workspace real `lint`, `check-types`, `test` and `build` scripts.
    Do not use success-only placeholders or `--passWithNoTests` as acceptance.
 3. Implement root `test:ci` and `test:ci:full`. Both must run actual workspace
@@ -23,6 +24,9 @@ In the same PR as the app:
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
+   At engine v2.48.2 the reusable application JUnit guard is PR-only: the
+   full command must separately reject zero/all-skipped results, or activation
+   must consume a validated engine release that checks them on push too.
 4. Configure the runner's JUnit reporter and Turbo outputs so cached test tasks
    restore their reports. Add actual build outputs and all root configuration,
    runtime and environment inputs that can change task results.

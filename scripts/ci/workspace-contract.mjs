@@ -5,6 +5,14 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function inspectWorkspaces(root) {
+  // This consumer deliberately supports the committed apps/* + packages/*
+  // layout. A workspace-glob edit must update the inventory contract too.
+  const layout = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8")
+    .split("\n").map((line) => line.replace(/\s*#.*$/, "").trim()).filter(Boolean);
+  const members = layout.slice(1).map((line) => line.replace(/^-[ \t]+/, "").replace(/^(["'])(.*)\1$/, "$2")).sort();
+  if (layout[0] !== "packages:" || JSON.stringify(members) !== JSON.stringify(["apps/*", "packages/*"])) {
+    throw new Error("Workspace globs changed; update the explicit inventory implementation before CI can select work");
+  }
   const contract = JSON.parse(readFileSync(join(root, ".ci/workspaces.json"), "utf8"));
   if (!["bootstrap", "application"].includes(contract.mode)) throw new Error("Unknown workspace mode");
   if (!Array.isArray(contract.workspaces) || contract.workspaces.some((p) => typeof p !== "string" || !/^(apps|packages)\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(p))) {
@@ -16,6 +24,7 @@ export function inspectWorkspaces(root) {
   for (const parent of ["apps", "packages"]) {
     const directory = join(root, parent);
     if (!existsSync(directory)) continue;
+    if (lstatSync(directory).isSymbolicLink()) throw new Error(`Symlink workspace parent is not supported: ${parent}`);
     for (const name of readdirSync(directory).sort()) {
       const path = join(directory, name);
       const stat = lstatSync(path);

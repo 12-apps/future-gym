@@ -19,6 +19,7 @@ function fixture({ mode = "bootstrap", workspaces = [] } = {}) {
   mkdirSync(join(root, ".ci"), { recursive: true });
   writeFileSync(join(root, ".ci/workspaces.json"), JSON.stringify({ mode, workspaces }));
   writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { "test:ci": "run-unit", "test:ci:full": "run-all" } }));
+  writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n  - "packages/*"\n');
   return root;
 }
 function app(root, path = "apps/mobile", tasks = scripts) {
@@ -129,4 +130,11 @@ test("root signal requires the established suite, not zero, skipped or file-only
   const { assertRootTestCount } = await import("../ci/root-test-count.mjs");
   assert.equal(assertRootTestCount("# pass 30\n# fail 0\n"), 30);
   for (const tap of ["", "# pass 0\n# fail 0\n", "# pass 3\n# fail 0\n", "# pass 30\n# fail 1\n", "# pass 30\n# fail 0\n# pass 0\n# fail 0\n"]) assert.throws(() => assertRootTestCount(tap));
+});
+
+
+test("changing pnpm workspace roots cannot hide an unregistered application", () => {
+  const root = fixture();
+  writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "services/*"\n');
+  assert.throws(() => inspectWorkspaces(root), /Workspace globs changed/);
 });
