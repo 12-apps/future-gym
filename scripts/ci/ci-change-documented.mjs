@@ -52,7 +52,7 @@ const REPO_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..", "..")
 export const LOG = "docs/ci/EXPERIMENTS.md";
 
 /** What counts as "CI" for rule (1). Kept in one place so the ADR and the gate agree. */
-export const CI_PATH_RE = /^(\.github\/workflows\/|scripts\/ci-[^/]+\.mjs$|scripts\/ci\/|scripts\/post-merge-regen\.mjs$|scripts\/adr\/)/;
+export const CI_PATH_RE = /^(\.ci\/|\.github\/workflows\/|scripts\/ci-[^/]+\.mjs$|scripts\/ci\/|scripts\/post-merge-regen\.mjs$|scripts\/adr\/)/;
 
 export const RENOVATE_BRANCH_RE = /^(chore\/renovate-|renovate\/)/;
 
