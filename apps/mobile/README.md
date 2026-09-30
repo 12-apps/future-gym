@@ -19,9 +19,19 @@ pnpm --filter @repo/mobile build
 ```
 
 `build` creates an Android JavaScript/Hermes export in `dist/`; it is not an APK
-and does not prove a device install. The APK workflow will be configured only
-with the user's final Android package identifier and app name. Signing and
-distribution remain separate decisions.
+and does not prove a device install. `android.package` is intentionally unset:
+the foundation's tests and bundle do not need a final application identity.
+Final branding and the Play Store identifier can be decided later; owning a
+domain is not a prerequisite for an Android application ID. See the
+[Android ID rules](https://developer.android.com/build/configure-app-module)
+and [Expo configuration reference](https://docs.expo.dev/versions/latest/config/app/#package).
+
+Expo Go can host this development bundle using its own installed application
+identity. Use a matching SDK 57 Android build to validate the native shell
+without inventing a package identifier. A standalone development APK would need
+an explicitly chosen development ID; never silently turn a temporary value into
+the production identity. After publication, changing the application ID makes it
+a different app. Signing and distribution remain separate decisions.
 
 ## Contracts
 
@@ -38,3 +48,14 @@ distribution remain separate decisions.
   restore them. This guards against green tests with missing/stale evidence.
 - Native-only shared UI gaps remain upstream work. No visual workaround is
   introduced here to bypass the accepted appearance ADR.
+
+## Observed development runtime
+
+The [SDK 57 Expo Go audit](https://github.com/12-apps/future-gym/actions/runs/36766752079)
+rendered this shell on Android API 35 with `android.package` still unset. It
+verified the localized tab, repeated interaction, background/resume, cold reopen
+and phone/wide layouts. The captures show an Expo production-scheme advisory;
+that warning has not been suppressed or resolved. Runtime behavior passing is
+not a zero-warning or production-readiness claim. See E-008 in
+[`docs/ci/EXPERIMENTS.md`](../../docs/ci/EXPERIMENTS.md) for the measured attempts,
+screenshots and remaining acceptance boundary.

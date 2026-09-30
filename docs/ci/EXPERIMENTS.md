@@ -420,3 +420,142 @@ properly cache-restored JSON/JUnit evidence. A full event cannot use a PR label
 bypass or treat skipped cases as execution. All public runner overrides remain
 mandatory, no AWS/S3/external cache wiring is added, and Android bundle success
 still does not establish APK/device acceptance.
+
+### E-008 — Deferred identity: can Expo Go validate the native foundation without a permanent application ID?
+
+**Status:** Open — 2026-09-30
+
+**Question:** Can the existing screenless shell satisfy its runtime gate while
+final branding, Android application ID and publication remain deferred?
+
+**Method:** Keep `android.package` unset. The actual Expo config command reports
+SDK 57.0.0 and no Android package; the already-proven tests and bundle do not
+require one. Android's [documented ID rules](https://developer.android.com/build/configure-app-module)
+require a syntactically valid unique identifier, not domain ownership. Expo's
+[configuration reference](https://docs.expo.dev/versions/latest/config/app/#package)
+describes a user-chosen standalone identifier. The earlier notes treating final
+identity as a prerequisite for this foundation were unnecessarily restrictive;
+runtime/on-screen validation remains a separate, required gate.
+
+Use an isolated GitHub-hosted Android emulator audit branch with the official
+SDK 57 Expo Go build, which supplies its own native application identity. No
+app ID, Expo account, secret, AWS resource, host-security setting or signing
+configuration is added. Observe existing acceleration access; use software
+emulation if it is unavailable. Do not accept a new Android SDK license silently.
+Capture launch, repeated tab interaction, background/resume, cold reopen and a
+wide layout. Keep screenshots and runtime logs as evidence and inspect them
+before claiming the gate passes. The probe workflow remains outside this app PR.
+
+**Result:** The first hosted attempt
+[36757551281](https://github.com/12-apps/future-gym/actions/runs/36757551281)
+resolved and downloaded official Expo Go 57.0.9 successfully. It then stopped
+before boot because `sdkmanager` was not on the runner's PATH (exit 127).
+The next audit commit resolves the installed Android command-line tools from
+`ANDROID_HOME`; no application dependency or security setting is changed.
+Runtime evidence is still pending, and no emulator success is claimed from this
+setup-only result.
+
+**Why:** A final store identity is needed for publishing the app under that
+identity, not for executing the existing bundle inside Expo Go. Any standalone
+temporary development ID would be a separate explicit choice. Expo Go validation
+does not claim a standalone APK, signing or store acceptance.
+
+**Regression watch:** Leave the Android package unset until an explicit identity
+choice. Do not substitute bundle/test success for on-screen execution. Preserve
+GitHub-hosted-only infrastructure and fail on unsupported native dependencies,
+runtime errors or missing screenshots. Record failed attempts as well as the
+restored successful proof; never waive the runtime gate because setup is slow.
+
+**Addendum (2026-09-30):** After correcting command-line tool discovery,
+[36757754714](https://github.com/12-apps/future-gym/actions/runs/36757754714)
+installed the official SDK/emulator without a new license prompt. Its software
+boot attempt exceeded the 900-second window, and unbounded cleanup waited on
+adb; cleanup and emulator-process checks were bounded in the next audit commit.
+The diagnostic retry
+[36760143025](https://github.com/12-apps/future-gym/actions/runs/36760143025),
+head `d0b5df80eb4dfeff7c59785e93999d3c113db1a7`, stopped with exit 77:
+`This user doesn't have permissions to use KVM (/dev/kvm)`. The device was
+`root:kvm` with mode 0660 and the runner was not in that group. SDK 57 Expo Go
+57.0.9 was downloaded successfully, but no native app screen or screenshot was
+produced. No virtualization permission was changed. Granting scoped access to
+that device in a disposable test runner requires explicit action-time approval;
+the runtime gate remains open while that decision is pending. Final app identity
+and domain ownership are unrelated to this verified infrastructure blocker.
+
+**Addendum (2026-09-30, approved acceleration and observed runtime):** The
+owner explicitly approved read/write access only for the current `runner` user
+on `/dev/kvm` in this disposable GitHub-hosted audit. The harness saves the
+original ACL, grants that one user access, and restores the original ACL in an
+`always()` step. This changes the earlier permission-pending result; it does
+not establish a standing permission for other jobs or alter account settings.
+
+The following recovery attempts were measured before the successful runtime:
+- [36761956436](https://github.com/12-apps/future-gym/actions/runs/36761956436)
+  confirmed usable KVM after the approved grant, then failed to discover the
+  AVD. `avdmanager` and the emulator had different home directories. Explicit
+  `ANDROID_USER_HOME`, `ANDROID_EMULATOR_HOME` and `ANDROID_AVD_HOME` fixed the
+  mismatch. The original ACL was restored.
+- An intermediate audit commit, `40ebab9b40c363c464a691941ae35491a42fbb82`, used
+  the unsupported `runner.temp` expression in job-level `env`. Actionlint
+  detected it, but a later successful shell command masked that validation
+  exit. The next commit moved these values to a step writing `GITHUB_ENV` and
+  made validation fail fast. No application source changed.
+- [36762434620](https://github.com/12-apps/future-gym/actions/runs/36762434620)
+  booted Android, installed Expo Go 57.0.9 and confirmed the package was unset,
+  but the Metro health check timed out after 180 seconds. Its actual screenshot
+  showed the Android launcher, not the application. Read-only log inspection
+  [36763594889](https://github.com/12-apps/future-gym/actions/runs/36763594889)
+  and a local reproduction separated IPv6 localhost binding from the IPv4
+  health check. `NODE_OPTIONS=--dns-result-order=ipv4first` fixed the mismatch.
+  Expo CLI's headless mode avoided its optional desktop DevTools launcher;
+  Chromium sandbox settings were not changed.
+- [36764153374](https://github.com/12-apps/future-gym/actions/runs/36764153374)
+  loaded the bundle into Expo Go but stopped on the observed first-run tutorial.
+  The harness now locates the real `Continue` control from UIAutomator XML.
+  Removing offline mode also removed an avoidable manifest-assets warning.
+- [36765514636](https://github.com/12-apps/future-gym/actions/runs/36765514636)
+  dismissed that tutorial, then correctly failed while the normal developer
+  menu covered the app. The next audit locates its observed `Close` control,
+  and parses XML entities before asserting the localized `Início` tab.
+
+**Measured positive:** Audit head
+`99912a25aa0ebfd40a13bce3b7a00b74f8639c2b`, on app source
+`d853045788a8b7d1c5e7a541d2cac5332f2e932f`, completed
+[36766752079](https://github.com/12-apps/future-gym/actions/runs/36766752079)
+successfully. The sole job ran in runner group `GitHub Actions` with label
+`ubuntu-latest`, from 19:35:42 to 19:39:47 UTC (245 seconds). Its boot/drive/
+capture step took 146 seconds. Android API 35 x86_64 ran official Expo Go
+57.0.9 with project SDK 57.0.0. The first bundle transformed 1,416 modules in
+16,138 ms; the cold reopen transformed one module in 135 ms. No final Android
+package or domain was configured.
+
+The actual native shell and its localized tab passed first launch, repeated tab
+taps, Home/background and resume, force-stop and cold reopen, then a 1280x800
+wide layout. Phone captures are 390x844. UI assertions ran after each action;
+no fatal Android exception, JavaScript error overlay or matching runtime error
+was found. The original virtualization ACL was restored successfully at
+19:39:45 UTC. The exact PNGs were inspected, including the tutorial and developer
+menu before dismissal, and the five application states were preserved separately.
+The [runtime artifact](https://github.com/12-apps/future-gym/actions/runs/36766752079/artifacts/11121536572)
+contains screenshots, UI XML, Metro logs and logcat (717,325 bytes; seven-day
+retention). The workflow and driving scripts remain only on the isolated audit
+branch, not in the application PR.
+
+**Acceptance boundary:** Runtime behavior passed, but the screenshots visibly
+show Expo's production `scheme` advisory as a development warning toast. The
+console states that it does not apply to development in the Expo client and
+that a build-time scheme is needed for production linking. No warning was
+suppressed and no production identity or scheme was invented. The repository's
+strict no-new-warning run gate therefore remains open pending a real resolution
+or an explicit owner decision for this deferred-production scope. A successful
+probe exit is not a claim that that broader gate passed. This is a screenless
+foundation: no workout screens, dark-mode behavior, standalone APK, signing,
+physical-device or store acceptance are established by these captures.
+
+**Regression watch addendum:** Keep emulator homes consistent and Metro's
+loopback address compatible with the readiness probe; fail promptly if the
+emulator dies and bound cleanup. Observe onboarding controls before tapping,
+parse decoded UI labels, and preserve a screenshot for every runtime state.
+Only the separately approved temporary user ACL may change and it must be
+restored even on failure. Neither bundle success nor a passing runtime script
+may conceal a visible warning or claim production acceptance.

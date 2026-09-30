@@ -11,7 +11,11 @@ application jobs reported as not run rather than green zero-task work.
 
 The confirmed platform is Expo/React Native Android. The accepted UI ADR remains
 binding. Permanent Android identity and distribution decisions must come from
-the user; never invent a package identifier or signing setup.
+the user; never invent a package identifier or signing setup. Those decisions
+are deferred and do not block foundation tests, bundling or an Expo Go runtime
+check. A matching SDK 57 Expo Go build provides its own native container while
+`android.package` remains unset. Runtime/on-screen evidence is still required
+by the delivery protocol; postponing identity does not waive that gate.
 
 In the same PR as the app:
 
@@ -67,3 +71,12 @@ secret inheritance and external Turbo remote-cache settings. Dependency/task
 caches use GitHub Actions; no AWS fleet or S3 storage is configured. Any future
 APK lane must preserve this boundary and use GitHub artifact storage. An Android
 export remains a bundle check, not device or APK acceptance.
+
+## Native runtime evidence
+
+E-008 records a successful GitHub-hosted Expo Go runtime audit of the screenless
+foundation with the final application identity still deferred. Actual screenshots
+cover first launch, repeated tab interaction, background/resume, cold reopen and
+phone/wide layouts. Expo's production-scheme advisory is visible in those captures;
+the strict no-new-warning gate is not claimed complete while that setting remains
+unresolved. No warning suppression or arbitrary permanent identity is introduced.
