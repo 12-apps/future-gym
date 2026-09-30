@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import androidExport from "../../apps/mobile/scripts/android-export.cjs";
@@ -27,14 +27,19 @@ test("the sole native workspace has real CI tasks and restores both reports", ()
 });
 
 test("production source composes shared UI and preserves the approved native stack", () => {
-  for (const path of ["apps/mobile/app/_layout.tsx", "apps/mobile/app/(tabs)/_layout.tsx", "apps/mobile/app/(tabs)/index.tsx", "apps/mobile/src/providers.tsx"]) {
+  const sourcePaths = ["apps/mobile/app", "apps/mobile/src"].flatMap((root) =>
+    readdirSync(new URL(`../../${root}`, import.meta.url), { recursive: true })
+      .filter((name) => /\.tsx?$/.test(name)).map((name) => `${root}/${name}`));
+  for (const path of sourcePaths) {
     assert.doesNotMatch(read(path), /from ["'](?:react-native|@mui|@emotion|expo-image|expo-linear-gradient|expo-blur|@expo\/vector-icons)/, path);
   }
+  assert.match(read("apps/mobile/src/client/components.tsx"), /from "@12-apps\/ui\/layout\/Screen"/);
+  for (const path of sourcePaths) assert.doesNotMatch(read(path), /WebView|dangerouslySetInnerHTML/, path);
   const rules = read("apps/mobile/eslint.config.mjs");
   for (const name of ["react-native", "react-native-*", "@mui/*", "@emotion/*", "@12-apps/ui/mui/*", "expo-image", "expo-linear-gradient", "expo-blur", "expo-symbols", "@expo/vector-icons"]) assert.ok(rules.includes(`"${name}"`), name);
   const providers = read("apps/mobile/src/providers.tsx");
   assert.match(providers, /<UiProvider>/); assert.match(providers, /<LocaleProvider locale=\{DEFAULT_LOCALE\}>/);
-  assert.match(read("apps/mobile/app/(tabs)/_layout.tsx"), /useLocaleCopy\(FOUNDATION_COPY\)/);
+  assert.match(read("apps/mobile/app/(tabs)/_layout.tsx"), /useLocaleCopy\(CLIENT_COPY\)/);
 });
 
 

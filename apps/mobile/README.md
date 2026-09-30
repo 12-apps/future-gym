@@ -59,3 +59,17 @@ that warning has not been suppressed or resolved. Runtime behavior passing is
 not a zero-warning or production-readiness claim. See E-008 in
 [`docs/ci/EXPERIMENTS.md`](../../docs/ci/EXPERIMENTS.md) for the measured attempts,
 screenshots and remaining acceptance boundary.
+
+## Functional client prototype (GYM-4)
+
+The prototype adds tenant-scoped sample plans, native workout execution and timers,
+validated load/repetition input, and completed-set history. One global sample user
+can own a gym and be a client of another provider. All records stay in memory for
+this demonstration; no login, network persistence, billing or real prescription
+is represented as implemented.
+
+The normal native Jest command runs both Android and iOS presets. A preset pass
+is source/renderer coverage, not a device or simulator boot. The required CI build
+remains Android export; a separate `expo export --platform ios --output-dir
+<scratch-directory>` verifies iOS bundling without creating an IPA or a permanent
+bundle identifier. See [scope, limitations and acceptance steps](../../docs/product/NATIVE-CLIENT-PROTOTYPE.md).
