@@ -26,7 +26,7 @@ In the same PR as the app:
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
-   At engine v2.48.3 the reusable application JUnit guard is PR-only. The
+   At engine v2.49.0 the reusable application JUnit guard is PR-only. The
    native Jest wrapper and root runner explicitly reject zero/all-skipped JSON
    results on both paths, including cached full runs; a newer central guard is
    defense in depth rather than permission to remove that execution assertion.
@@ -46,8 +46,23 @@ In the same PR as the app:
 8. Append actual run IDs, executed counts, cache evidence and both positive and
    negative outcomes to `EXPERIMENTS.md`. Verify full post-merge execution.
 
-Consumer entrypoints use engine v2.48.3 commit
-`102a864b440ced7f94ac92136d7dd44962137016`. Internal engine actions still resolve
+Consumer entrypoints use engine v2.49.0 commit
+`ea88024608cb8c9f5ce8fe655fb64e6866bbf469`. Internal engine actions still resolve
 through its supported major references. Secrets and deployment are not added by
 this bootstrap; the existing ADR-index job still needs its separately configured
 `RENOVATE_TOKEN`.
+
+## Public infrastructure boundary
+
+Future Gym is open source. Every local CI job uses the standard GitHub-hosted
+`ubuntu-latest` runner, and every reusable workflow call explicitly supplies
+`runner: ubuntu-latest`. The shared engine must give this caller input precedence
+over any inherited `CI_RUNNER` variable. An observed GitHub-hosted run alone is
+not proof that future runs cannot inherit a different organization setting.
+
+The consumer contracts reject omitted/inherited/self-hosted runner selections,
+unreviewed reusable workflows, AWS credential/deployment/storage wiring, blanket
+secret inheritance and external Turbo remote-cache settings. Dependency/task
+caches use GitHub Actions; no AWS fleet or S3 storage is configured. Any future
+APK lane must preserve this boundary and use GitHub artifact storage. An Android
+export remains a bundle check, not device or APK acceptance.

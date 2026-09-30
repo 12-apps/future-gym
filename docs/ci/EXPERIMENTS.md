@@ -251,3 +251,78 @@ The first GitHub run is the push that adds this to 12-apps/future-gym#1.
 **Addendum (2026-09-30):** Restored head `a10a3e9c3d43e7d319e1ffc7ef7468cfa3e24983` passed the full hosted application pipeline in [36735339638](https://github.com/12-apps/future-gym/actions/runs/36735339638) with v2.48.3 consumer pins. A final foundation convention correction routes the existing tab label through the typed `@12-apps/i18n` locale pack instead of an inline literal, retaining pt-BR as the configured locale. The actual router test now asserts the pt-BR tab label. This adds no locale switch or product feature and will receive its own final-head checks.
 
 **Addendum (2026-09-30):** Final application source head `69bfa0eb8d506413a0fbe85b65745411a8deb935` passed hosted [36736198006](https://github.com/12-apps/future-gym/actions/runs/36736198006): real repository contracts, native lint/types, 4/4 native cases including the localized router label, nonempty Android export and CI Success. Independent narrow review also reran lint/types, all 4 fresh native cases and focused root contracts with no findings. The PR remains a draft because permanent Android identity and device/emulator installation acceptance are unresolved; these green checks do not claim an APK, device boot or distribution.
+
+### E-006 — Public CI: can inherited runner configuration redirect Future Gym to AWS?
+
+**Status:** Open — 2026-09-30
+
+**Question:** Can this open-source repository enforce GitHub-hosted execution for
+all CI and regeneration jobs, regardless of an inherited `CI_RUNNER` variable,
+without adding AWS runners, storage or paid infrastructure?
+
+**Method:**
+- Inspect actual job metadata, rather than infer hosting from step names. On
+  [36736863609](https://github.com/12-apps/future-gym/actions/runs/36736863609),
+  all 11 executed jobs at head `291718b21c8b22cc646d2337d55a0d97884aab21`
+  used the `GitHub Actions` runner group and `ubuntu-latest`. Five skipped jobs
+  are not execution evidence. The workflow passed all application checks.
+- The pinned static/tests/regeneration engine still chose
+  `vars.CI_RUNNER || 'ubuntu-latest'`. This is an inheritance gap even though no
+  AWS execution was observed. Organization/repository variable administration
+  was not exposed by the available connection, and no setting was changed.
+- Keep runner-selection precedence in `12-apps/ci`; the consumer supplies
+  `runner: ubuntu-latest` to static, tests and post-merge regeneration. Root
+  repository contracts and CI Success already use that literal runner.
+- Add dependency-free consumer tests over every committed workflow. They reject
+  each missing override, inherited or self-hosted selectors, unreviewed reusable
+  calls, AWS credential/deployment/storage wiring, blanket secret inheritance
+  and external Turbo remote-cache variables. The parser intentionally supports
+  this repository's narrow workflow layout; Actionlint separately validates YAML.
+- Require a released engine that declares the runner input before publishing
+  the caller change. Then exercise a missing-override negative on the PR, restore
+  it and inspect exact-head hosted jobs. The negative fails repository contracts
+  before the reusable application jobs can start.
+
+**Result:** Locally, 43/43 root cases pass (695.8 ms), including 7 new runner/cloud
+contract tests. Native lint/types pass, and the PR unit command freshly executes
+4/4 native cases across 2 suites (1.810 s Jest; 2.695 s Turbo task, zero cache
+hits). The full command restores the same verified JSON/JUnit evidence from the
+task cache (15 ms Turbo), rather than re-executing. A fresh Android export
+compiles 1,250 modules in 7,709 ms and verifies a 2,690,422-byte Hermes bundle.
+Actionlint, ADR records and whitespace checks pass. The initial shell selected
+an unrelated global pnpm shim and failed before application commands; using the
+already-installed repository-pinned pnpm 10.34.5 resolves that tool-selection
+issue without changing dependencies. Metro inherited a color-environment
+warning from the executor; this is not an application warning or device test.
+Released-input integration and hosted positive/negative results remain pending.
+
+**Why:** A GitHub-hosted historical run proves where that run executed. Only an
+explicit caller input, honored before organization configuration, prevents a
+future inherited variable from selecting the AWS fleet. Cache/verdict safety is
+still the engine's responsibility; consumer tests pin its intended use here.
+
+**Evidence:** `scripts/__tests__/hosted-runners.test.mjs`, both workflow files,
+the linked baseline run and `BOOTSTRAP.md`. Caches remain GitHub Actions caches;
+the current build is a local Android export and no APK publishing/S3 lane exists.
+The pre-existing missing regeneration PR token and Android identity/device
+acceptance blockers are unchanged.
+
+**Regression watch:** Every current and future job must have a reviewed
+GitHub-hosted selection. Removing any caller override must fail root contracts;
+explicit `ubuntu-latest` must win even if the shared engine sees a self-hosted
+organization variable. No AWS credential action, S3 destination or external
+remote-cache secret may enter these workflows. Exact-head hosted job metadata
+must show GitHub Actions runners. A future APK workflow must use GitHub artifact
+storage and must not imply release/distribution acceptance from bundle success.
+
+**Addendum (2026-09-30):** The central runner override is normally released as
+[v2.49.0](https://github.com/12-apps/ci/releases/tag/v2.49.0), immutable commit
+`ea88024608cb8c9f5ce8fe655fb64e6866bbf469`. The annotated release tag was resolved
+and all 17 jobs across this consumer's three reusable callees were checked for
+`inputs.runner || vars.CI_RUNNER || 'ubuntu-latest'`. All four consumer engine
+entrypoints now pin that commit. This release does not include the separate
+full-event JUnit change; the native JSON guard still protects both PR and full
+commands. An actual local missing-override mutation exited 1 (5/7 runner tests
+passed, 2 failed); after restoration all 43 root cases passed. No remote
+repository settings or credentials changed. Hosted negative/positive integration
+will be appended after execution.
