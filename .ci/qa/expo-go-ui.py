@@ -1,0 +1,40 @@
+import re
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+
+action, path = sys.argv[1:]
+root = ET.parse(path).getroot()
+nodes = list(root.iter('node'))
+
+def text(node):
+    return ' '.join([node.attrib.get('text', ''), node.attrib.get('content-desc', '')]).strip()
+
+def tap(node):
+    match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if not match:
+        raise RuntimeError('No observed bounds for selected control')
+    left, top, right, bottom = map(int, match.groups())
+    subprocess.run(['adb', 'shell', 'input', 'tap', str((left+right)//2), str((top+bottom)//2)], check=True)
+
+if action == 'onboarding':
+    for node in nodes:
+        if text(node) in {'Got it'}:
+            print('Dismissing Expo Go tutorial:', text(node))
+            tap(node)
+            break
+elif action == 'tap-home':
+    matches = [node for node in nodes if 'Início' in text(node)]
+    if not matches:
+        raise RuntimeError('Expected home tab not observed')
+    tap(matches[0])
+elif action == 'assert':
+    visible = ' '.join(map(text, nodes))
+    if 'Início' not in visible:
+        raise RuntimeError('Localized home tab missing')
+    for marker in ['Something went wrong', 'Render Error', 'Uncaught Error', 'Invariant Violation', 'TypeError', 'Unable to resolve', 'Project is incompatible']:
+        if marker in visible:
+            raise RuntimeError('Runtime error visible: '+marker)
+    print('Native home tab is visible without an error overlay')
+else:
+    raise RuntimeError('Unknown proof operation')

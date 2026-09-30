@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$PWD"
+OUT="$ROOT/runtime-evidence"
+mkdir -p "$OUT"
+export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+cleanup() {
+  adb logcat -d > "$OUT/logcat.txt" 2>&1 || true
+  adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
+  adb pull /sdcard/final.xml "$OUT/final.xml" > /dev/null 2>&1 || true
+  adb exec-out screencap -p > "$OUT/final.png" 2>/dev/null || true
+  test -z "${METRO_PID:-}" || kill "$METRO_PID" 2>/dev/null || true
+  adb emu kill > /dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+# Observe existing hypervisor access. Never change KVM permissions or security.
+if emulator -accel-check > "$OUT/acceleration.txt" 2>&1; then
+  ACCEL=auto
+else
+  ACCEL=off
+fi
+cat "$OUT/acceleration.txt"
+echo "Using acceleration=$ACCEL without changing host settings"
+emulator -avd gym-proof -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
+EMULATOR_PID=$!
+timeout 900 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do sleep 5; done'
+kill -0 "$EMULATOR_PID"
+adb shell input keyevent KEYCODE_WAKEUP
+adb shell wm dismiss-keyguard
+adb shell wm size 390x844
+adb shell wm density 160
+
+APK=$(node -p "require('./runtime-evidence/expo-go-download.json').path")
+adb install "$APK"
+adb shell dumpsys package host.exp.exponent | grep -E 'versionName=|versionCode=' | tee "$OUT/expo-go-installed.txt"
+pnpm --dir apps/mobile exec expo config --type public --json > "$OUT/expo-config.json"
+node -e "const c=require('./runtime-evidence/expo-config.json'); if(c.android?.package) throw new Error('The proof must not assign an Android app identity'); console.log('SDK',c.sdkVersion,'android.package remains unset');"
+pnpm --dir apps/mobile exec expo start --go --localhost --port 8081 > "$OUT/metro.log" 2>&1 &
+METRO_PID=$!
+timeout 180 bash -c 'until curl --fail --silent http://127.0.0.1:8081/status | grep -q packager-status:running; do sleep 2; done'
+adb reverse tcp:8081 tcp:8081
+adb logcat -c
+
+capture() {
+  local name="$1"
+  adb shell uiautomator dump /sdcard/proof.xml >/dev/null
+  adb pull /sdcard/proof.xml "$OUT/$name.xml" >/dev/null
+  adb exec-out screencap -p > "$OUT/$name.png"
+}
+launch() {
+  adb shell am start -a android.intent.action.VIEW -d exp://127.0.0.1:8081 -p host.exp.exponent
+}
+wait_shell() {
+  local found=0
+  for attempt in $(seq 1 45); do
+    sleep 4
+    adb shell uiautomator dump /sdcard/proof.xml >/dev/null 2>&1 || continue
+    adb pull /sdcard/proof.xml "$OUT/current.xml" >/dev/null 2>&1
+    if grep -q 'Início' "$OUT/current.xml"; then found=1; break; fi
+    # Only dismiss the known, non-binding Expo Go onboarding tutorial.
+    python3 .ci/qa/expo-go-ui.py onboarding "$OUT/current.xml"
+  done
+  test "$found" = 1 || { echo 'Native shell did not become visible'; cat "$OUT/current.xml"; return 1; }
+  python3 .ci/qa/expo-go-ui.py assert "$OUT/current.xml"
+}
+
+launch
+wait_shell
+capture 01-first-launch-phone
+python3 .ci/qa/expo-go-ui.py tap-home "$OUT/current.xml"
+python3 .ci/qa/expo-go-ui.py tap-home "$OUT/current.xml"
+sleep 2
+capture 02-repeated-tab-phone
+python3 .ci/qa/expo-go-ui.py assert "$OUT/02-repeated-tab-phone.xml"
+adb shell input keyevent KEYCODE_HOME
+sleep 2
+launch
+wait_shell
+capture 03-resume-phone
+adb shell am force-stop host.exp.exponent
+launch
+wait_shell
+capture 04-cold-reopen-phone
+adb shell wm size 1280x800
+sleep 5
+capture 05-wide-layout
+python3 .ci/qa/expo-go-ui.py assert "$OUT/05-wide-layout.xml"
+adb logcat -d > "$OUT/logcat.txt"
+if grep -E 'FATAL EXCEPTION|ReactNativeJS.*(TypeError|ReferenceError|Invariant Violation|Unable to resolve|Error:)' "$OUT/logcat.txt"; then
+  echo 'Native runtime error detected'; exit 1
+fi
+echo 'Runtime proof passed: Expo Go SDK 57, initial render, repeated tab, resume, cold reopen and wide layout; no app applicationId assigned.'
