@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { CLIENT_COPY, formatNumber } from "./copy";
 import { useClient } from "./context";
 import { Muted, Page, Plate, ProviderHeader, SampleNote, SectionTitle } from "./components";
-import type { SessionSummary } from "./model";
+import { trainingForMember, type SessionSummary } from "./model";
 
 function SummaryStats({ summary }: { summary: SessionSummary }) {
   const copy = useLocaleCopy(CLIENT_COPY);
@@ -19,7 +19,7 @@ function SummaryStats({ summary }: { summary: SessionSummary }) {
 }
 export function HistoryScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const { state } = useClient(); const router = useRouter();
-  const history = state.tenants[state.selectedTenantId]!.history.filter((entry) => entry.userId === state.userId && entry.tenantId === state.selectedTenantId);
+  const history = trainingForMember(state).history;
   return <Page testID="gym-history" tabs><ProviderHeader /><Heading level="h1" size="h3">{copy.history}</Heading>
     {history.length ? <Stack gap={1.5}>{history.map((entry) => <Card key={entry.id} variant="outlined" borderRadius="lg" onPress={() => router.push({ pathname: "/summary/[id]", params: { id: entry.id } })} dataTestId={`history-${entry.id}`}>
       <Stack p={2} gap={1.5}><Stack direction="row" gap={1.5} align="center"><Plate letter={entry.letter} small /><Stack flex={1} gap={0.5}><Text weight="semibold">{entry.name}</Text><Muted>{new Date(entry.startedAt).toLocaleDateString("pt-BR")} · {entry.completedSets} {copy.sets}</Muted></Stack><Text weight="bold">{formatNumber(entry.volumeKg)} kg</Text></Stack></Stack>
@@ -29,7 +29,7 @@ export function HistoryScreen() {
 }
 export function SummaryScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const { id } = useLocalSearchParams<{ id: string }>(); const { state } = useClient(); const router = useRouter();
-  const summary = state.tenants[state.selectedTenantId]!.history.find((entry) => entry.id === id && entry.userId === state.userId && entry.tenantId === state.selectedTenantId);
+  const summary = trainingForMember(state).history.find((entry) => entry.id === id);
   if (!summary) return <Page testID="gym-summary-unavailable"><EmptyState title={copy.unavailable} description={copy.unavailableHint} primaryAction={{ label: copy.goHome, onClick: () => router.replace("/") }} /></Page>;
   return <Page testID="gym-summary"><Plate letter={summary.letter} /><Stack gap={1}><Muted>{summary.name}</Muted><Heading level="h1" size="h3">{copy.summary}</Heading></Stack>
     <SummaryStats summary={summary} /><Stack gap={1.5}><SectionTitle>{copy.recorded}</SectionTitle>{summary.exercises.map((exercise) => {

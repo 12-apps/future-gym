@@ -11,7 +11,7 @@ import { useState } from "react";
 import { CLIENT_COPY, formatInputNumber } from "./copy";
 import { useClient } from "./context";
 import { Muted, Page } from "./components";
-import { commandForTenant, parseSetInput, type SetLog } from "./model";
+import { commandForTenant, parseSetInput, trainingForMember, type SetLog } from "./model";
 
 function SetEditor({ initial, exerciseName, index, onSave, onCancel }: {
   initial: SetLog; exerciseName: string; index: number;
@@ -37,7 +37,7 @@ export function SetEditorScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const router = useRouter();
   const { exerciseId, setIndex, sessionId } = useLocalSearchParams<{ exerciseId: string; setIndex: string; sessionId: string }>();
   const { state, setState } = useClient(); const tenantId = state.selectedTenantId;
-  const session = state.tenants[tenantId]!.activeSession;
+  const session = trainingForMember(state).activeSession;
   const index = /^\d+$/.test(setIndex ?? "") ? Number(setIndex) : -1;
   const exercise = session?.workout.exercises.find((item) => item.id === exerciseId);
   const initial = session?.logs[exerciseId]?.[index];

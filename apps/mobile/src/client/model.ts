@@ -194,6 +194,16 @@ export function summarizeSession(session: WorkoutSession, now: number): SessionS
       sets: (session.logs[exercise.id] ?? []).map((set) => ({ ...set })) })) };
 }
 
+/** Reject a stale or mis-keyed member snapshot on reads as well as writes. */
+export function trainingForMember(state: DemoClientState, tenantId = state.selectedTenantId): TenantTrainingState {
+  const tenant = state.tenants[tenantId];
+  const session = tenant?.activeSession;
+  return {
+    activeSession: session?.userId === state.userId && session.tenantId === tenantId ? session : null,
+    history: (tenant?.history ?? []).filter((entry) => entry.userId === state.userId && entry.tenantId === tenantId),
+  };
+}
+
 export function selectTenant(state: DemoClientState, tenantId: string): DemoClientState {
   return state.tenants[tenantId] ? { ...state, selectedTenantId: tenantId } : state;
 }
@@ -207,7 +217,7 @@ export function beginWorkout(state: DemoClientState, workout: Workout, id: strin
 
 export function commandForTenant(state: DemoClientState, tenantId: string, sessionId: string, command: SessionCommand): DemoClientState {
   const tenant = state.tenants[tenantId];
-  if (state.selectedTenantId !== tenantId || tenant?.activeSession?.id !== sessionId || tenant.activeSession.userId !== state.userId) return state;
+  if (state.selectedTenantId !== tenantId || tenant?.activeSession?.id !== sessionId || tenant.activeSession.userId !== state.userId || tenant.activeSession.tenantId !== tenantId) return state;
   const activeSession = updateSession(tenant.activeSession, command);
   if (activeSession === tenant.activeSession) return state;
   return { ...state, tenants: { ...state.tenants, [tenantId]: { ...tenant, activeSession } } };
@@ -215,7 +225,7 @@ export function commandForTenant(state: DemoClientState, tenantId: string, sessi
 
 export function finishSession(state: DemoClientState, tenantId: string, sessionId: string, now: number, discard = false): DemoClientState {
   const tenant = state.tenants[tenantId];
-  if (state.selectedTenantId !== tenantId || tenant?.activeSession?.id !== sessionId || tenant.activeSession.userId !== state.userId) return state;
+  if (state.selectedTenantId !== tenantId || tenant?.activeSession?.id !== sessionId || tenant.activeSession.userId !== state.userId || tenant.activeSession.tenantId !== tenantId) return state;
   const summary = summarizeSession(tenant.activeSession, now);
   if (!discard && summary.completedSets === 0) return state;
   return { ...state, tenants: { ...state.tenants, [tenantId]: { activeSession: null,

@@ -1,6 +1,6 @@
 import type { LocalePack } from "@12-apps/i18n";
 const pt = {
-  brand: "FUTURE GYM", clientRole: "Aluno", ownerRole: "Proprietário e aluno", sample: "DEMONSTRAÇÃO", sampleNotice: "Dados de exemplo nesta sessão. Sem conta, cobrança ou envio ao treinador.",
+  brand: "FUTURE GYM", clientRole: "Cliente", ownerRole: "Proprietário e cliente", sample: "DEMONSTRAÇÃO", sampleNotice: "Dados de exemplo nesta sessão. Sem conta, cobrança ou envio ao treinador.",
   provider: "Seu espaço", changeProvider: "Trocar espaço", chooseProvider: "Escolha seu espaço", providerHint: "Sua ficha e seu histórico ficam separados em cada espaço.",
   home: "Início", workouts: "Treinos", history: "Histórico", yourPlan: "Sua ficha", weekPlan: "Ficha da semana", today: "TREINO DE HOJE", restDay: "Dia de descanso", restHint: "Seu próximo treino está na ficha abaixo.",
   active: "TREINO EM ANDAMENTO", openWorkout: "Abrir treino", resume: "Voltar ao treino", startWorkout: "Iniciar treino", assigned: "Ficha do seu treinador", assignedHint: "A prescrição é de exemplo. Aqui você registra o que fez, sem alterar a ficha.",

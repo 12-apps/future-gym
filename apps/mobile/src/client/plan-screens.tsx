@@ -11,7 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { CLIENT_COPY, formatNumber } from "./copy";
 import { useClient } from "./context";
 import { Muted, Page, Plate, ProviderHeader, SampleNote, SectionTitle, WorkoutCard } from "./components";
-import { beginWorkout, type Workout } from "./model";
+import { beginWorkout, trainingForMember, type Workout } from "./model";
 import { SAMPLE_WEEK, workoutsForTenant } from "./sample-data";
 
 const openPath = (id: string) => ({ pathname: "/workout/[id]" as const, params: { id } });
@@ -21,7 +21,7 @@ export function HomeScreen() {
   const copy = useLocaleCopy(CLIENT_COPY);
   const { state } = useClient();
   const router = useRouter();
-  const tenant = state.tenants[state.selectedTenantId]!;
+  const tenant = trainingForMember(state);
   const workouts = workoutsForTenant(state.selectedTenantId);
   const week = SAMPLE_WEEK[state.selectedTenantId]!;
   const now = new Date();
@@ -82,7 +82,7 @@ export function WorkoutScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const { id } = useLocalSearchParams<{ id: string }>();
   const { state, setState } = useClient(); const router = useRouter();
   const workout = workoutsForTenant(state.selectedTenantId).find((item) => item.id === id);
-  const active = state.tenants[state.selectedTenantId]!.activeSession;
+  const active = trainingForMember(state).activeSession;
   if (!workout) return <Page testID="gym-unavailable"><EmptyState title={copy.unavailable} description={copy.unavailableHint} primaryAction={{ label: copy.goHome, onClick: () => router.replace("/") }} /></Page>;
   return <Page testID="gym-workout-detail">
     <Button variant="ghost" onPress={() => router.back()}>{copy.back}</Button>

@@ -1,4 +1,4 @@
-import { beginWorkout, commandForTenant, createSession, finishSession, parseSetInput, remainingMilliseconds, selectTenant, summarizeSession, updateSession } from "../src/client/model";
+import { beginWorkout, commandForTenant, createSession, finishSession, parseSetInput, remainingMilliseconds, selectTenant, summarizeSession, trainingForMember, updateSession } from "../src/client/model";
 import { createDemoState, SAMPLE_WORKOUTS, sampleRolesForTenant } from "../src/client/sample-data";
 import { formatInputNumber } from "../src/client/copy";
 const workout = SAMPLE_WORKOUTS[0]!;
@@ -127,6 +127,19 @@ describe("tenant boundaries", () => {
     const state = beginWorkout(createDemoState(), workout, "empty", 0);
     expect(finishSession(state, "sample-gym", "empty", 1000)).toBe(state);
     expect(finishSession(state, "sample-gym", "empty", 1000, true).tenants["sample-gym"]!.activeSession).toBeNull();
+  });
+  it("hides stale account data and rejects a mis-keyed tenant snapshot", () => {
+    let original = beginWorkout(createDemoState(), workout, "gym-session", 0);
+    original = commandForTenant(original, "sample-gym", "gym-session", { type: "toggle-set", exerciseId: "supino-reto", setIndex: 0 });
+    const logged = finishSession(original, "sample-gym", "gym-session", 1000);
+    expect(trainingForMember({ ...original, userId: "another-member" }).activeSession).toBeNull();
+    expect(trainingForMember({ ...logged, userId: "another-member" }).history).toHaveLength(0);
+    const wrongTenant = { ...original, selectedTenantId: "sample-personal", tenants: {
+      ...original.tenants, "sample-personal": original.tenants["sample-gym"]!,
+    } };
+    expect(trainingForMember(wrongTenant).activeSession).toBeNull();
+    expect(commandForTenant(wrongTenant, "sample-personal", "gym-session", { type: "start-set", now: 1000 })).toBe(wrongTenant);
+    expect(finishSession(wrongTenant, "sample-personal", "gym-session", 1000)).toBe(wrongTenant);
   });
   it("rejects another user's active session", () => {
     const state = { ...beginWorkout(createDemoState(), workout, "gym-session", 0), userId: "another-member" };

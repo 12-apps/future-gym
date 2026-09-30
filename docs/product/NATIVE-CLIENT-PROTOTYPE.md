@@ -18,7 +18,7 @@ The input reference is the user-supplied `Future Gym.html` (105,552 bytes). The 
 
 This is a session-only sample adapter. All sample content is visibly labeled and stays in memory. Relaunching the process clears demo sessions/history. There is no authentication, server authorization, API persistence, trainer transmission, real billing or subscription flow. Exercise examples are fixtures, not a training recommendation. No pricing, minimum student count or permanent application identifier has been invented.
 
-The business plan admits one global user to multiple provider tenants. The fixture includes a gym owner who is also a client of a separate physiotherapy provider; ownership never crosses that tenant boundary. The prototype keeps all records under the selected tenant and carries the sample user ID through session and history boundaries. These guards prevent local state leakage; they are not a substitute for server-side membership verification. The future API must derive membership/permissions from the authenticated user and selected tenant, never trust these mock identifiers.
+The business plan admits one global user to multiple provider tenants. The fixture includes a gym owner who is also a client of a separate physiotherapy provider; ownership never crosses that tenant boundary. The prototype rejects stale-account and mis-keyed-tenant snapshots before both display and mutation. It keeps all records under the selected tenant and carries the sample user ID through session and history boundaries. These guards prevent local state leakage; they are not a substitute for server-side membership verification. The future API must derive membership/permissions from the authenticated user and selected tenant, never trust these mock identifiers.
 
 Prescription editing and partner duels are intentionally deferred from this first functional version. Trainer desktop React web, backend and superadmin are separate work. The volume view reports direct planned sets from sample prescriptions and makes no ideal-volume, recovery, or clinical claims.
 
@@ -41,16 +41,16 @@ All results below use the full-source local UI candidate with SHA-256
 It is not a registry release. Consumer package/lockfile pins remain unchanged,
 so a clean ordinary install still awaits the real shared release.
 
-- Native tests: 84 passed across 10 Android/iOS suites, zero skipped (2026-09-30,
-  10.638 seconds). Includes 31 pure state cases per platform, eight real-router
+- Native tests: 86 passed across 10 Android/iOS suites, zero skipped (2026-09-30,
+  9.4 seconds). Includes 32 pure state cases per platform, eight real-router
   flows per platform, provider/router smoke checks, and a shared theme contract.
 - Root contracts: 43 passed, zero skipped. The initial foundation-only
   `FOUNDATION_COPY` assertion was updated to the actual `CLIENT_COPY`; the check
   now scans all production sources and pins the shared Screen import and absence
   of WebView/HTML rendering.
 - App lint, typecheck, ADR record validation and diff whitespace checks: passed.
-- Fresh Android Hermes export: 1,405 modules, 10,293 ms Metro, 3,036,815 bytes.
-- Fresh iOS Hermes export: 1,270 modules, 9,470 ms Metro, 2,725,169 bytes.
+- Fresh Android Hermes export: 1,405 modules, 8,643 ms Metro, 3,037,040 bytes.
+- Fresh iOS Hermes export: 1,270 modules, 8,153 ms Metro, 2,725,415 bytes.
 - Both exports were cleared first and verified as nonempty files referenced by
   their platform's Metro metadata. Local export used two Metro workers after an
   unbounded-worker attempt exited without a bundle. That first attempt is not

@@ -16,13 +16,13 @@ import { useEffect, useState } from "react";
 import { CLIENT_COPY, formatClock, formatNumber } from "./copy";
 import { useClient } from "./context";
 import { Muted, Page, SectionTitle } from "./components";
-import { commandForTenant, finishSession, remainingMilliseconds, summarizeSession, type SessionCommand } from "./model";
+import { commandForTenant, finishSession, remainingMilliseconds, summarizeSession, trainingForMember, type SessionCommand } from "./model";
 
 export function SessionScreen() {
   const copy = useLocaleCopy(CLIENT_COPY); const theme = useUiTheme(); const router = useRouter();
   const { state, setState } = useClient();
   const tenantId = state.selectedTenantId;
-  const session = state.tenants[tenantId]!.activeSession;
+  const session = trainingForMember(state).activeSession;
   const sessionId = session?.id;
   const [now, setNow] = useState(Date.now);
   const [confirmEnd, setConfirmEnd] = useState(false);
