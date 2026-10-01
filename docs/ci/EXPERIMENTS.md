@@ -642,3 +642,22 @@ return type. Stable invalidation callbacks now own cancellation and the mock
 removal callback explicitly returns void. No lint suppression or relaxed type
 check is added. The failed run is not a native-unit or runtime pass; the corrected
 exact-head run must execute those tests before acceptance.
+
+
+**Addendum (2026-10-01, corrected E-010 source unit):** Head
+`ebc45a30c32dbc16f01c43604f6c54ee7ff0f710` passed CI 36926559369. Fresh native
+execution passed 206 cases across 20 Android/iOS suites, zero skipped, and the
+signal guards accepted the real JUnit count. Repository contracts, lint, types
+and Android export passed. This isolated unit adds the real audio capability and
+controlled tests; the session-screen controls still await the approved shared UI
+release and final integrated native audit. No audible-output/device claim follows
+from this renderer result.
+
+
+**Addendum (2026-10-01, composed control path):** A pure transition reproduction
+found that a valid inline load blur plus Skip-rest in one observed update lost
+its rest-end cue: the guard compared log object identity rather than set
+completion state. It now compares completion flags, retaining the manual-toggle
+suppression while preserving the cue after load-only edits. A permanent case
+pins the combined transition and unchanged completion data. This fix reopens the
+affected exact-head checks; the earlier 206-case result is not its verification.

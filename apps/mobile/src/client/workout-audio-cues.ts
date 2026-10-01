@@ -47,7 +47,13 @@ export function observeWorkoutAudio(previous: WorkoutAudioCursor | null, observa
     if (!endObserved && (session.phase === "rest" || session.phase === "ready")) return { cursor, cue: "setEnd" };
   }
 
-  if (oldSession.phase === "rest" && session.phase === "ready" && session.logs === oldSession.logs) return { cursor, cue: "restEnd" };
+  // A field blur can commit a load in the same render as Skip. Compare the
+  // completion state, not log object identity, so a harmless edit keeps the cue.
+  const oldSets = exerciseId ? oldSession.logs[exerciseId] : undefined;
+  const nextSets = exerciseId ? session.logs[exerciseId] : undefined;
+  const sameCompletions = !!oldSets && !!nextSets && oldSets.length === nextSets.length &&
+    oldSets.every((set, index) => set.completed === nextSets[index]?.completed);
+  if (oldSession.phase === "rest" && session.phase === "ready" && sameCompletions) return { cursor, cue: "restEnd" };
 
   if (session.phase !== oldSession.phase || session.setIndex !== oldSession.setIndex || session.deadline !== oldSession.deadline) return silent;
   const oldRemaining = remainingMilliseconds(oldSession, before.now);

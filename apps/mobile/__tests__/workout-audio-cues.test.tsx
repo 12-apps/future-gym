@@ -74,6 +74,15 @@ describe("workout cue selection without native playback", () => {
     const observe = observer(); observe(rest, 0);
     expect(observe(updateSession(rest, { type: "toggle-set", exerciseId: rest.workout.exercises[0]!.id, setIndex: 1 }), 250)).toBeNull();
   });
+  it("keeps the rest-end cue when an inline load edit and Skip share one observed update", () => {
+    const rest = updateSession(execution(), { type: "complete-set", now: 0 });
+    const observe = observer(); observe(rest, 250);
+    const edited = updateSession(rest, { type: "set-log", exerciseId: rest.workout.exercises[0]!.id,
+      setIndex: 1, kg: 42.5, repetitions: 9 });
+    const ready = updateSession(edited, { type: "skip-rest" });
+    expect(observe(ready, 500)).toBe("restEnd");
+    expect(ready.logs[rest.workout.exercises[0]!.id]![1]).toEqual({ kg: 42.5, repetitions: 9, completed: false });
+  });
   it("suppresses late and backward-clock transitions rather than catching up", () => {
     const active = execution(); const observe = observer(); observe(active, 0);
     expect(observe(active, active.deadline! + 10000)).toBeNull();
