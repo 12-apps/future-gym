@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@12-apps/i18n": "1.3.0",
-    "@12-apps/ui": "6.56.0",
+    "@12-apps/ui": "6.57.0",
     "@expo/metro-runtime": "57.0.16",
     "expo": "57.0.20",
     "expo-audio": "57.0.5",

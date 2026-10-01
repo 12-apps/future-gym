@@ -143,7 +143,8 @@ describe('adversarial review regression cases', () => {
     const cancelPress = cancel.props.onPress, savePress = save.props.onPress;
     act(() => { savePress({}); cancelPress({}); });
     expect(screen.queryByTestId("gym-session")).not.toBeNull();
-    expect(screen.getByText("42,5 kg × 10")).toBeOnTheScreen();
+    expect(screen.getByTestId("inline-load-0")).toHaveDisplayValue("42,5");
+    expect(screen.getByTestId("inline-reps-0")).toHaveDisplayValue("10");
   });
   it("navigation guards unlock when the workout becomes focused again", async () => {
     await startFromHome();

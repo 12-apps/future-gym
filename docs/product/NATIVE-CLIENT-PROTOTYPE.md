@@ -179,3 +179,30 @@ introduced runtime, data-isolation or accessibility defect still require a fix
 and fresh exact-head tests/screenshots before merge. The 23-state audit from
 36915950179 proves warning removal, including cold reopen; it predates these
 control changes and is not their acceptance evidence.
+
+
+## Integrated controls and published dependency — 2026-10-01
+
+The shared prerequisite merged as shared-packages #746 at 473c915 and published
+`@12-apps/ui@6.57.0` through its normal CI/CD. The downloaded registry tarball's
+SHA-512 matches its published SRI; both declaration trees expose the two APIs,
+and changed production sources match the reviewed package source. Dependencies,
+peer dependencies and engines match 6.56.0 exactly, so the consumer retains the
+existing resolved graph and changes only the version and verified integrity.
+
+The remaining controls now use that release: the centered timer and underlying
+paused phase; inline validated kg/repetitions, +/-2.5 kg and completion/target
+state; persistent next/final navigation; sound toggle and foreground cues; and
+the bottom finish sheet with full-width save/discard/continue. Routed editing is
+retained, with invalid inline drafts discarded when entering that editor and
+late blur events prevented from restoring them. Audio configuration failures
+remain visible while explicit recording still works; no warning is suppressed.
+
+The isolated audio transition unit passed 208 Android/iOS cases, zero skipped,
+in exact-head CI36928846082 at 593515c. Its composed field-blur/Skip-rest case
+preserves the cue without counting an unperformed set. The final integrated
+native suites and actual Android proof are still pending. The prepared audit
+requires all ten counterpart states at 390/1280, inline/routed error and cancel
+paths, large-font/keyboard controls, both personal-provider histories, empty
+save/discard/restart, cold reopen and UID-attributed native playback events.
+Headless service evidence will not be called audible-output proof.

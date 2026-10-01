@@ -661,3 +661,11 @@ completion state. It now compares completion flags, retaining the manual-toggle
 suppression while preserving the cue after load-only edits. A permanent case
 pins the combined transition and unchanged completion data. This fix reopens the
 affected exact-head checks; the earlier 206-case result is not its verification.
+
+**Addendum (2026-10-01, composed-path verification):** CI36928846082 at
+593515c passed 208 actual Android/iOS cases across 20 suites, zero skipped and
+fresh execution, plus root contracts, lint, types and Android export. The final
+session-screen integration consumes the verified registry release UI6.57.0;
+its unchanged dependency/peer contract preserves the prior resolved lock graph.
+The frozen offline lock validation passed. Fresh real-registry CI installation
+and final integrated device evidence remain required before merge.
