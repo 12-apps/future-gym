@@ -15,7 +15,11 @@ def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=30)
 
 def observe():
-    adb("shell", "uiautomator", "dump", "/sdcard/client.xml")
+    size = adb("shell", "wm", "size").decode()
+    width, height = re.findall(r"(\d+)x(\d+)", size)[-1]
+    adb("shell", "rm", "-f", "/sdcard/client.xml")
+    adb("shell", "CLASSPATH=/data/local/tmp/gym-dump.jar:/system/framework/uiautomator.jar",
+        "app_process", "/system/bin", "GymDump", "/sdcard/client.xml", width, height)
     adb("pull", "/sdcard/client.xml", str(out / "current-client.xml"))
     nodes = list(ET.parse(out / "current-client.xml").getroot().iter("node"))
     visible = " ".join(n.attrib.get("text", "") + " " + n.attrib.get("content-desc", "") for n in nodes)

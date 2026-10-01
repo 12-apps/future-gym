@@ -79,6 +79,15 @@ wait_shell() {
   python3 .ci/qa/expo-go-ui.py assert "$OUT/current.xml"
 }
 
+# Compile our read-only observer against the official Android runtime tool.
+# Stock uiautomator dump waits for 1s idle; the active timer updates every second.
+D8=$(find "$ANDROID_HOME/build-tools" -type f -name d8 | sort -V | tail -1)
+test -x "$D8"
+mkdir -p "$RUNNER_TEMP/gym-dump/classes" "$RUNNER_TEMP/gym-dump/dex"
+javac --release 8 -d "$RUNNER_TEMP/gym-dump/classes" .ci/qa/GymDump.java
+"$D8" --output "$RUNNER_TEMP/gym-dump/dex" "$RUNNER_TEMP/gym-dump/classes/GymDump.class"
+(cd "$RUNNER_TEMP/gym-dump/dex" && zip -q ../gym-dump.jar classes.dex)
+adb push "$RUNNER_TEMP/gym-dump/gym-dump.jar" /data/local/tmp/gym-dump.jar
 launch
 wait_shell
 python3 .ci/qa/native-client-ui.py "$OUT"
