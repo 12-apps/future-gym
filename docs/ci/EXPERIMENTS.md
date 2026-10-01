@@ -562,3 +562,33 @@ may conceal a visible warning or claim production acceptance.
 
 
 **Addendum (2026-10-01, development acceptance decision):** The Expo production-scheme advisory is accepted for development inside Expo Go only. It does not waive production linking configuration, assign an Android/iOS application identifier, authorize publication or suppress any warning. The measured foundation runtime and screenshots from run 36766752079 remain the evidence; this documentation decision changes no application code. The foundation may precede the functional client merge after its exact-head CI and review checks pass. The functional client still requires its own runtime and visual acceptance.
+
+### E-009 — Development linking: can the native audit run without the recurring advisory?
+
+**Status:** Open — 2026-10-01
+**Question:** Remove the actual cause of Expo's recurring scheme advisory while
+keeping production identity deferred, then prove all native prototype states.
+**Method:** Inspect the captured manifest and pinned `expo-linking` resolver;
+provide an explicit development-only scheme via dynamic Expo config and the
+normal cross-platform development command. Add regressions for default,
+development and production variants. The Android export pins the production
+variant even if its caller inherited development variables. Repeat exact-head CI
+and the GitHub-hosted Android audit, with no warning-dismissal step and with the
+advisory itself treated as a failing runtime observation.
+**Result:** Prior run 36908104023 reached the cold-reopened home but its advisory
+intercepted History navigation. The owner requested a cause fix after the
+three-failure protocol stop. New local root contracts pass 46 cases, including
+three config regressions; updated device and CI evidence remain pending.
+**Why:** The prior public manifest has no scheme. `expo-linking@57.0.9`
+`src/Schemes.ts` emits this exact warning when `collectManifestSchemes()` is empty,
+before selecting Expo Go's `exp` transport. Development config now supplies a
+scheme without registering a standalone application or changing production
+identity. The resolver still uses Expo Go's normal transport.
+**Evidence:** `apps/mobile/app.config.js`, `scripts/start-dev.cjs`,
+`scripts/__tests__/expo-development-config.test.mjs`, and
+[prior Android run](https://github.com/12-apps/future-gym/actions/runs/36908104023).
+**Regression watch:** No warning suppression, `LogBox` filtering or automatic
+advisory dismissal. Default/production config must not inherit the development
+scheme. No Android package/iOS bundle identifier is assigned. The audit must
+prove warning-free initial and cold launches, preserve screenshots, use only
+the authorized temporary runner KVM ACL and always restore its original value.
