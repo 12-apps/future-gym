@@ -2,6 +2,8 @@ const shared = {
   transformIgnorePatterns: ["node_modules/(?!.*(react-native|expo|@12-apps|navigation))"],
   testEnvironmentOptions: { customExportConditions: ["react-native"] },
   testMatch: ["<rootDir>/__tests__/**/*.test.tsx"],
+  // Renderer-only device boundary. Focused audio tests replace this with controlled failures.
+  setupFilesAfterEnv: ["<rootDir>/__tests__/audio-setup.tsx"],
 };
 
 module.exports = {

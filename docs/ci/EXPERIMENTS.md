@@ -561,38 +561,125 @@ restored even on failure. Neither bundle success nor a passing runtime script
 may conceal a visible warning or claim production acceptance.
 
 
-### E-009 — Native client Android acceptance audit
+**Addendum (2026-10-01, development acceptance decision):** The Expo production-scheme advisory is accepted for development inside Expo Go only. It does not waive production linking configuration, assign an Android/iOS application identifier, authorize publication or suppress any warning. The measured foundation runtime and screenshots from run 36766752079 remain the evidence; this documentation decision changes no application code. The foundation may precede the functional client merge after its exact-head CI and review checks pass. The functional client still requires its own runtime and visual acceptance.
+
+### E-009 — Development linking: can the native audit run without the recurring advisory?
 
 **Status:** Open — 2026-10-01
+**Question:** Remove the actual cause of Expo's recurring scheme advisory while
+keeping production identity deferred, then prove all native prototype states.
+**Method:** Inspect the captured manifest and pinned `expo-linking` resolver;
+provide an explicit development-only scheme via dynamic Expo config and the
+normal cross-platform development command. Add regressions for default,
+development and production variants. The Android export pins the production
+variant even if its caller inherited development variables. Repeat exact-head CI
+and the GitHub-hosted Android audit, with no warning-dismissal step and with the
+advisory itself treated as a failing runtime observation.
+**Result:** Prior run 36908104023 reached the cold-reopened home but its advisory
+intercepted History navigation. The owner requested a cause fix after the
+three-failure protocol stop. New local root contracts pass 46 cases, including
+three config regressions; updated device and CI evidence remain pending.
+**Why:** The prior public manifest has no scheme. `expo-linking@57.0.9`
+`src/Schemes.ts` emits this exact warning when `collectManifestSchemes()` is empty,
+before selecting Expo Go's `exp` transport. Development config now supplies a
+scheme without registering a standalone application or changing production
+identity. The resolver still uses Expo Go's normal transport.
+**Evidence:** `apps/mobile/app.config.js`, `scripts/start-dev.cjs`,
+`scripts/__tests__/expo-development-config.test.mjs`, and
+[prior Android run](https://github.com/12-apps/future-gym/actions/runs/36908104023).
+**Regression watch:** No warning suppression, `LogBox` filtering or automatic
+advisory dismissal. Default/production config must not inherit the development
+scheme. No Android package/iOS bundle identifier is assigned. The audit must
+prove warning-free initial and cold launches, preserve screenshots, use only
+the authorized temporary runner KVM ACL and always restore its original value.
 
-**Question:** Does prototype c7dfb236769e56d82e969fe8cec9fde1d5490de4 pass its real Android screen, keyboard, session and tenant-isolation flows?
+**Addendum (2026-10-01):** First exact-head CI 36915179972 passed the 46 root
+contracts and types, but lint correctly rejected the new `APP_VARIANT` because
+it was not declared in Turbo. The variable is now in `globalEnv` and the config
+regression also pins that declaration. This keeps variant-dependent configuration
+inside the task environment/cache identity rather than silencing the lint rule.
 
-**Method:** Isolated GitHub-hosted ubuntu-latest audit using official Expo Go SDK 57 and Android API 35. Drive 23 captured states, including two personal trainers, validation/cancel, timers, completed-set volume, empty-save refusal, discard, lifecycle and phone/wide layouts. The application tree is unchanged. This audit has explicit temporary permission for the runner user to access /dev/kvm; save the original ACL and restore it with always() cleanup. No AWS, account permissions, final app identity or signing changes. The production-scheme advisory is accepted only in development; production remains deferred.
+**Addendum (2026-10-01, E-009 verification):** Exact-head CI 36915486404 passed
+46 root contracts and 122 Android/iOS renderer cases, with zero skipped, plus
+lint, types and Android export. Native audit 36915950179 passed all 23 real
+Android states with application/configuration bytes matching 24c37a3. Initial
+launch and cold reopen contain no scheme warning, the empty-history assertion
+completed, and the temporary runner KVM ACL was restored. Independent visual
+inspection confirmed the warning-free frames. The separate original-reference
+job captured all 20 supplied HTML artboards. These results precede later
+functional/fidelity changes and do not establish their final acceptance.
 
-**Result:** Python/shell syntax, actionlint and 43 existing root contracts pass before dispatch. Actual runtime result pending; preparation is not execution proof.
+### E-010 — Renderer audio boundary: do tests distinguish mocked capability from runtime playback?
 
-**Regression watch:** Preserve the exact source SHA, every capture and error path, both provider identities, explicit disabled-save assertion, original ACL restoration and no-runtime-error assertions. Bundle success never substitutes for native screenshots. This workflow remains outside application PRs.
+**Status:** Open — 2026-10-01
+**Question:** Preserve Android/iOS real-router UI coverage after foreground-only
+workout cues are added, without pretending a renderer can decode or play sound.
+**Method:** Add a renderer-only `expo-audio` setup mock to both existing platform
+projects. Controlled hook tests override it to exercise setup/playback failures,
+late updates, mute/pause/navigation cancellation, cleanup and repeated cues.
+Pure tests exercise cue selection without mutating workout state and verify the
+committed generated WAV assets. Actual runtime playback/error evidence belongs
+to the separate Android audit, not these mocks.
+**Result:** Final integrated renderer and device execution is pending. Earlier
+pure/syntax checks do not replace the affected native suites.
+**Why:** The existing native renderer cannot provide the operating-system audio
+player. An explicit documented device boundary keeps UI tests deterministic while
+focused failure tests and real-runtime checks retain responsibility for behavior.
+**Evidence:** `apps/mobile/jest.config.js`, `__tests__/audio-setup.tsx`, the three
+`workout-audio*.test.tsx` suites and `src/client/workout-audio.ts`.
+**Regression watch:** No conditional test skip, muted warning filter or production
+mock. Both platform suites must execute. Cues must not complete sets, cross
+user/tenant/session boundaries, replay after interruption or request recording/
+background permissions. Any visible audio error or new runtime warning blocks
+the device gate.
 
 
-**Audit retry addendum (2026-10-01):** Run 36902696115 booted the actual client and captured the home, prescribed workout, session, invalid-input and keyboard-editor states. Stock UIAutomator then repeatedly reported `could not get idle state`; its dump command returned success without replacing the XML, so the driver read an old editor snapshot. The final PNG shows the app had already saved 42.5 kg x 9 and returned to the session. This is an observer failure, not a passing app audit. Original KVM permissions were restored. The retry removes every prior XML before capture and uses the platform accessibility snapshot API without a global-idle wait; it changes no app code or system permission. Shell/Python/actionlint checks pass locally; Java compilation occurs on the hosted runner because this cloud workspace has no javac. The known development-only scheme advisory remains visible and accepted; no other app warning is waived.
+**Addendum (2026-10-01, first E-010 candidate):** CI 36925982152 rejected the
+first audio-only review unit before its tests: the hook cleanup incremented ref
+counters directly inside an effect cleanup, triggering the exhaustive-deps
+stale-ref warning, and the controlled player mock had a recursive inferred
+return type. Stable invalidation callbacks now own cancellation and the mock
+removal callback explicitly returns void. No lint suppression or relaxed type
+check is added. The failed run is not a native-unit or runtime pass; the corrected
+exact-head run must execute those tests before acceptance.
 
 
-**Second retry addendum (2026-10-01):** Run 36904345695 confirmed the fresh observer works on the live timer and captured nine app states through correct save, pause and rest controls. It stopped at History navigation: the screenshot shows the accepted development advisory overlay covers the tab icon midpoint, while the tab label remains visible below it. The next harness taps the observed tab target's lower label area; no app code or warning-suppression setting changes. Original KVM permissions were restored after the failed run. This is still not a completed runtime acceptance.
+**Addendum (2026-10-01, corrected E-010 source unit):** Head
+`ebc45a30c32dbc16f01c43604f6c54ee7ff0f710` passed CI 36926559369. Fresh native
+execution passed 206 cases across 20 Android/iOS suites, zero skipped, and the
+signal guards accepted the real JUnit count. Repository contracts, lint, types
+and Android export passed. This isolated unit adds the real audio capability and
+controlled tests; the session-screen controls still await the approved shared UI
+release and final integrated native audit. No audible-output/device claim follows
+from this renderer result.
 
 
-**Observed overlay diagnosis (2026-10-01):** Run 36905642005 again stopped before History. A separate read-only artifact inspection (36906504552) confirms the tab bounds and the retained Expo warning overlay, including its unique close control. A lower-edge tap alone did not resolve input interception, so the prior overlay explanation was a hypothesis, not a proven fix. The next audit preserves the visible advisory capture, dismisses only its actually observed close control, records the resulting screen, and then retries ordinary History navigation. Console warnings remain unsuppressed. The actual application tree is unchanged; a further failure at this gate will be escalated rather than retried blindly.
+**Addendum (2026-10-01, composed control path):** A pure transition reproduction
+found that a valid inline load blur plus Skip-rest in one observed update lost
+its rest-end cue: the guard compared log object identity rather than set
+completion state. It now compares completion flags, retaining the manual-toggle
+suppression while preserving the cue after load-only edits. A permanent case
+pins the combined transition and unchanged completion data. This fix reopens the
+affected exact-head checks; the earlier 206-case result is not its verification.
+
+**Addendum (2026-10-01, composed-path verification):** CI36928846082 at
+593515c passed 208 actual Android/iOS cases across 20 suites, zero skipped and
+fresh execution, plus root contracts, lint, types and Android export. The final
+session-screen integration consumes the verified registry release UI6.57.0;
+its unchanged dependency/peer contract preserves the prior resolved lock graph.
+The frozen offline lock validation passed. Fresh real-registry CI installation
+and final integrated device evidence remain required before merge.
 
 
-**Cold-reopen synchronization addendum (2026-10-01):** Run 36906979160 passed the previously blocked History navigation after dismissing the observed advisory, then verified gym summary/history, concurrent personal trainers and separate 120 kg/96 kg histories, disabled empty save, discard, foreground resume and wide layout. It preserved 23 app captures before cold reopen failed. Logcat at 18:33:26 records the new launch attached to the just-stopped process and `no app thread`; the final screenshot shows the launcher. This is not counted as cold-reopen acceptance or an app-code defect. The next audit waits for the process to disappear and its ActivityRecord to settle, uses am start -W, and allows bounded observed startup/onboarding completion. Application bytes remain unchanged; original KVM ACL was restored successfully.
+### E-011 — Isolated final native-control audit (verification branch only)
 
-**Owner-directed cause-fix continuation (2026-10-01):** After the protocol stop,
-the owner requested removal of the recurring advisory itself. The application
-now declares `future-gym-dev` only for the explicit development variant; default
-and production configuration still has no scheme or standalone app identifier.
-The audit uses the normal `dev` command, checks both resolved manifests, removes
-the previous advisory-close action and lower-edge tab-tap workaround, and fails
-on the warning text in UI observations or logcat. No warnings are filtered. All
-23 native states, including empty history after cold restart, must pass again.
-A separate reference job renders the exact original 105,552-byte HTML at the
-same 390/1280 viewport widths in sandboxed Chrome for independent comparison.
-The reference and audit remain outside the application PR. Results are pending.
+**Status:** Open — 2026-10-01
+**Method:** Audit application/configuration trees matching 667e514fda5b8ce10a920ca4550897b3fcadff84, with the
+published UI6.57.0 and explicit source-tree/lock identity checks before boot.
+Require all 20 phone/wide counterparts plus validation, keyboard/large-font,
+provider isolation, empty-save/discard, restart/cold-launch and real Android
+playback-service evidence. No injected application state or warning dismissal.
+Seventeen local harness contracts and syntax checks pass; this run is pending.
+**Regression watch:** No weakened errors, no production identity, no real data.
+Restore the original emulator font scale and temporary runner KVM ACL even on
+failure. The headless audio assertion is service activity, never heard output.

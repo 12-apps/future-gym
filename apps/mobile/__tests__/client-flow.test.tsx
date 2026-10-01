@@ -58,17 +58,18 @@ describe("native client flows through the real router", () => {
     fireEvent.changeText(screen.getByTestId("set-reps-input"), "9");
     fireEvent.press(screen.getByTestId("save-set"));
     await screen.findByTestId("gym-session");
-    expect(screen.getByText("42,5 kg × 9")).toBeOnTheScreen();
+    expect(screen.getByTestId("inline-load-0")).toHaveDisplayValue("42,5");
+    expect(screen.getByTestId("inline-reps-0")).toHaveDisplayValue("9");
   });
   it("runs, pauses, completes a set, extends and skips rest", async () => {
     await start();
     fireEvent.press(screen.getByTestId("start-set"));
     fireEvent.press(screen.getByTestId("pause-timer"));
-    expect(screen.getByText("PAUSADO")).toBeOnTheScreen();
+    expect(screen.getByText("PAUSADO · EXECUÇÃO")).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId("pause-timer"));
     fireEvent.press(screen.getByTestId("complete-set"));
     expect(screen.getByText("INTERVALO")).toBeOnTheScreen();
-    fireEvent.press(screen.getByText("+15 segundos"));
+    fireEvent.press(screen.getByTestId("extend-rest"));
     expect(screen.getByTestId("session-clock")).toHaveTextContent("1:45");
     fireEvent.press(screen.getByText("Pular intervalo"));
     expect(screen.getByText("PRONTO")).toBeOnTheScreen();
@@ -112,7 +113,7 @@ describe("native client flows through the real router", () => {
     await screen.findByTestId("gym-home");
     fireEvent.press(screen.getByText("Histórico"));
     await screen.findByTestId("gym-history");
-    expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
+    expect(screen.getByText("Nenhum treino concluído ainda")).toBeOnTheScreen();
     expect(screen.queryByText("400 kg")).toBeNull();
   });
   it("selects either of two personal trainers and keeps their sessions and histories separate", async () => {
@@ -159,7 +160,7 @@ describe("native client flows through the real router", () => {
     await changeProvider("sample-personal-rafael");
     fireEvent.press(screen.getByText("Histórico"));
     await screen.findByTestId("gym-history");
-    expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
+    expect(screen.getByText("Nenhum treino concluído ainda")).toBeOnTheScreen();
     expect(screen.queryByText("120 kg")).toBeNull();
     fireEvent.press(screen.getByText("Início"));
     await screen.findByTestId("gym-home");

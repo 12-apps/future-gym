@@ -129,3 +129,80 @@ exports. Independent focused review found no blocker. The first unbounded-heap
 full test invocation exited without assertion output and is not counted as a
 pass; the full bounded-heap rerun passed. The cause of that first exit remains
 unconfirmed. These results do not replace the pending native device audit.
+
+## Rendered-reference fidelity correction, round 1
+
+The first actual same-width comparison inspected 20 original artboards and the
+23 warning-free Android states from run 36915950179. It rejected ten grouped
+layout/interaction differences; successful runtime execution did not grant
+visual acceptance. The closed list includes dated home navigation and volume
+access, compact workout details/persistent start, centered timer and inline set
+controls, session navigation/audio, bottom-anchored finish, summary/history
+information, and matching wide-screen evidence.
+
+The first correction restores dates/week range, repeated dated schedule rows and
+rest-day next-workout access; restores direct home access to honestly labeled
+planned-volume counts; restores compact detail rows, count/duration/last-load
+metadata and viewport-persistent start/summary return; restores unperformed
+summary labels and history count/tonnage/set aggregates with duration. The page
+uses one outer shared Screen safe-area/keyboard owner, a shared scrolling child
+and a footer sibling. Container sizing uses theme spacing at the reference's
+column width; tab layout responds to its measured container, with labels below
+icons. Six additional router/calendar regressions cover these changes.
+
+Timer center content and a bottom-sheet confirmation require the shared UI
+capabilities named by the appearance ADR. Those are being prepared upstream;
+no consumer fallback, forged package version or local visual primitive is used.
+Inline editing/audio and the full phone/wide re-audit remain outstanding. This
+partial correction is not a fidelity approval or merge readiness claim.
+
+## Owner acceptance and bounded continuation — 2026-10-01
+
+The owner accepted the demonstrated native appearance for the playable prototype
+and approved merging it after the remaining protocol gates. A future design
+system pass will decide colours, contrast, typography and sizing; this PR does
+not claim exact HTML styling fidelity or final visual-design acceptance. The
+existing shared-token and native-component ADR remains binding.
+
+This decision resumes work after the disclosed greater-than-50-percent diff
+stop. The remaining review units are the additive shared Progress centre slot,
+Dialog bottom-sheet placement and native sound icons, then the consumer's
+functional inline set controls, sound toggle/cues, timer information and finish
+interaction. The shared changes have explicit conditional merge/publication
+approval and must arrive through a verified registry release. No local UI
+fallback or invented package version is allowed. Prescription editing, duels,
+production application identity and billing remain outside this prototype.
+
+The original appearance differences remain recorded in the first review rather
+than relabeled as an exact visual match. Missing functional controls and any
+introduced runtime, data-isolation or accessibility defect still require a fix
+and fresh exact-head tests/screenshots before merge. The 23-state audit from
+36915950179 proves warning removal, including cold reopen; it predates these
+control changes and is not their acceptance evidence.
+
+
+## Integrated controls and published dependency — 2026-10-01
+
+The shared prerequisite merged as shared-packages #746 at 473c915 and published
+`@12-apps/ui@6.57.0` through its normal CI/CD. The downloaded registry tarball's
+SHA-512 matches its published SRI; both declaration trees expose the two APIs,
+and changed production sources match the reviewed package source. Dependencies,
+peer dependencies and engines match 6.56.0 exactly, so the consumer retains the
+existing resolved graph and changes only the version and verified integrity.
+
+The remaining controls now use that release: the centered timer and underlying
+paused phase; inline validated kg/repetitions, +/-2.5 kg and completion/target
+state; persistent next/final navigation; sound toggle and foreground cues; and
+the bottom finish sheet with full-width save/discard/continue. Routed editing is
+retained, with invalid inline drafts discarded when entering that editor and
+late blur events prevented from restoring them. Audio configuration failures
+remain visible while explicit recording still works; no warning is suppressed.
+
+The isolated audio transition unit passed 208 Android/iOS cases, zero skipped,
+in exact-head CI36928846082 at 593515c. Its composed field-blur/Skip-rest case
+preserves the cue without counting an unperformed set. The final integrated
+native suites and actual Android proof are still pending. The prepared audit
+requires all ten counterpart states at 390/1280, inline/routed error and cancel
+paths, large-font/keyboard controls, both personal-provider histories, empty
+save/discard/restart, cold reopen and UID-attributed native playback events.
+Headless service evidence will not be called audible-output proof.

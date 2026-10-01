@@ -3,8 +3,46 @@ set -euo pipefail
 ROOT="$PWD"
 OUT="$ROOT/runtime-evidence"
 mkdir -p "$OUT"
+# Keep the audited application/dependency identity beside the actual captures.
+git rev-parse HEAD > "$OUT/source-sha.txt"
+git status --porcelain > "$OUT/source-working-tree.txt"
+pnpm --dir apps/mobile list --depth 0 --json > "$OUT/installed-native-dependencies.json"
+# Verify the exact reviewed application/configuration trees, not a nearby branch.
+printf '%s\n' '667e514fda5b8ce10a920ca4550897b3fcadff84' > "$OUT/consumer-source-sha.txt"
+test "$(git rev-parse HEAD:apps/mobile)" = d7e1fedc493e83900d1601e6cc04b646830489ea
+test "$(git rev-parse HEAD:pnpm-lock.yaml)" = d67da91050333556feb29efd202060c39b8577dd
+test "$(git rev-parse HEAD:package.json)" = 8cabe285ed5dd4aa5a9857b01d242b1de56a0cc4
+test "$(git rev-parse HEAD:turbo.json)" = 97e7679ecd7862623b6016e0cf964e0e11b51945
 export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+restore_font_scale_cleanup() {
+  local actual
+  if test "$ORIGINAL_FONT_SCALE" = null; then
+    timeout 15 adb shell settings delete system font_scale || return 1
+  else
+    timeout 15 adb shell settings put system font_scale "$ORIGINAL_FONT_SCALE" || return 1
+  fi
+  actual=$(timeout 15 adb shell settings get system font_scale | tr -d '\r\n') || return 1
+  printf 'original=%s\nrestored=%s\n' "$ORIGINAL_FONT_SCALE" "$actual"
+  test "$actual" = "$ORIGINAL_FONT_SCALE"
+}
 cleanup() {
+  local exit_status=$?
+  # Always attempt the bounded font restore when its original value is known,
+  # even if the driver or emulator disconnected. An unverified restore fails.
+  if test -n "${ORIGINAL_FONT_SCALE:-}"; then
+    if ! restore_font_scale_cleanup > "$OUT/font-scale-cleanup.txt" 2>&1; then
+        echo 'Failed to restore original disposable-emulator font_scale'
+        exit_status=1
+        python3 - "$OUT/result.json" <<'RESTORE_FAILURE'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+result = json.loads(path.read_text()) if path.exists() else {}
+result.update(status="failed-cleanup", cleanupError="Original emulator font_scale restoration could not be verified")
+path.write_text(json.dumps(result, indent=2))
+RESTORE_FAILURE
+    fi
+  fi
   if timeout 5 adb get-state >/dev/null 2>&1; then
     timeout 15 adb logcat -d > "$OUT/logcat.txt" 2>&1 || true
     timeout 15 adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
@@ -16,6 +54,8 @@ cleanup() {
   for log in emulator.log metro.log; do
     test ! -f "$OUT/$log" || { echo "RUNTIME_LOG:$log"; tail -100 "$OUT/$log"; }
   done
+  trap - EXIT
+  exit "$exit_status"
 }
 
 trap cleanup EXIT
@@ -34,6 +74,8 @@ cat "$OUT/acceleration.txt"
 echo "Using acceleration=$ACCEL for this disposable runtime job"
 emulator -list-avds | tee "$OUT/avd-list.txt"
 grep -qx gym-proof "$OUT/avd-list.txt"
+# -no-audio disables host I/O, not Android playback-service observation.
+# Keep this restriction explicit: no recording/microphone permissions or audible-output claim.
 emulator -avd gym-proof -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
 EMULATOR_PID=$!
 export EMULATOR_PID
@@ -43,6 +85,10 @@ adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard
 adb shell wm size 390x844
 adb shell wm density 160
+# Capture the exact original value (including an absent/null setting) before the driver.
+ORIGINAL_FONT_SCALE=$(adb shell settings get system font_scale | tr -d '\r\n')
+[[ "$ORIGINAL_FONT_SCALE" =~ ^(null|[0-9]+([.][0-9]+)?)$ ]] || { echo 'Unexpected original font_scale'; exit 1; }
+printf '%s\n' "$ORIGINAL_FONT_SCALE" > "$OUT/font-scale-original.txt"
 
 APK=$(node -p "require('./runtime-evidence/expo-go-download.json').path")
 adb install "$APK"
@@ -93,7 +139,6 @@ launch
 wait_shell
 python3 .ci/qa/native-client-ui.py "$OUT"
 adb logcat -d > "$OUT/logcat.txt"
-if grep -E 'Linking requires a build-time setting|Linking found multiple possible URI schemes|The provided Linking scheme|FATAL EXCEPTION|ReactNativeJS.*(TypeError|ReferenceError|Invariant Violation|Unable to resolve|Error:)' "$OUT/logcat.txt"; then
-  echo 'Native runtime error or linking warning detected'; exit 1
-fi
-echo 'Native client runtime proof passed: Expo Go SDK 57, initial render, repeated tab, resume, cold reopen and wide layout; no app applicationId assigned.'
+# The UI result is provisional until unfiltered native + Metro logs pass as well.
+python3 .ci/qa/native-client-ui.py --check-logs "$OUT"
+echo 'Native client runtime proof passed: 20 phone/wide counterpart captures; inline edits, validation/cancel, 1.3x font/restore, bounded footer/sheet, tenant histories, discard/restart, resume/cold reopen and real Android playback-service checks. Host audio remains disabled: audible output was not verified. No app applicationId assigned.'
