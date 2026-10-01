@@ -598,3 +598,37 @@ contracts and types, but lint correctly rejected the new `APP_VARIANT` because
 it was not declared in Turbo. The variable is now in `globalEnv` and the config
 regression also pins that declaration. This keeps variant-dependent configuration
 inside the task environment/cache identity rather than silencing the lint rule.
+
+**Addendum (2026-10-01, E-009 verification):** Exact-head CI 36915486404 passed
+46 root contracts and 122 Android/iOS renderer cases, with zero skipped, plus
+lint, types and Android export. Native audit 36915950179 passed all 23 real
+Android states with application/configuration bytes matching 24c37a3. Initial
+launch and cold reopen contain no scheme warning, the empty-history assertion
+completed, and the temporary runner KVM ACL was restored. Independent visual
+inspection confirmed the warning-free frames. The separate original-reference
+job captured all 20 supplied HTML artboards. These results precede later
+functional/fidelity changes and do not establish their final acceptance.
+
+### E-010 — Renderer audio boundary: do tests distinguish mocked capability from runtime playback?
+
+**Status:** Open — 2026-10-01
+**Question:** Preserve Android/iOS real-router UI coverage after foreground-only
+workout cues are added, without pretending a renderer can decode or play sound.
+**Method:** Add a renderer-only `expo-audio` setup mock to both existing platform
+projects. Controlled hook tests override it to exercise setup/playback failures,
+late updates, mute/pause/navigation cancellation, cleanup and repeated cues.
+Pure tests exercise cue selection without mutating workout state and verify the
+committed generated WAV assets. Actual runtime playback/error evidence belongs
+to the separate Android audit, not these mocks.
+**Result:** Final integrated renderer and device execution is pending. Earlier
+pure/syntax checks do not replace the affected native suites.
+**Why:** The existing native renderer cannot provide the operating-system audio
+player. An explicit documented device boundary keeps UI tests deterministic while
+focused failure tests and real-runtime checks retain responsibility for behavior.
+**Evidence:** `apps/mobile/jest.config.js`, `__tests__/audio-setup.tsx`, the three
+`workout-audio*.test.tsx` suites and `src/client/workout-audio.ts`.
+**Regression watch:** No conditional test skip, muted warning filter or production
+mock. Both platform suites must execute. Cues must not complete sets, cross
+user/tenant/session boundaries, replay after interruption or request recording/
+background permissions. Any visible audio error or new runtime warning blocks
+the device gate.
