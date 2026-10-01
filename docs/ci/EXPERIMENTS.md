@@ -559,3 +559,6 @@ parse decoded UI labels, and preserve a screenshot for every runtime state.
 Only the separately approved temporary user ACL may change and it must be
 restored even on failure. Neither bundle success nor a passing runtime script
 may conceal a visible warning or claim production acceptance.
+
+
+**Addendum (2026-10-01, development acceptance decision):** The Expo production-scheme advisory is accepted for development inside Expo Go only. It does not waive production linking configuration, assign an Android/iOS application identifier, authorize publication or suppress any warning. The measured foundation runtime and screenshots from run 36766752079 remain the evidence; this documentation decision changes no application code. The foundation may precede the functional client merge after its exact-head CI and review checks pass. The functional client still requires its own runtime and visual acceptance.
