@@ -584,3 +584,15 @@ may conceal a visible warning or claim production acceptance.
 
 
 **Cold-reopen synchronization addendum (2026-10-01):** Run 36906979160 passed the previously blocked History navigation after dismissing the observed advisory, then verified gym summary/history, concurrent personal trainers and separate 120 kg/96 kg histories, disabled empty save, discard, foreground resume and wide layout. It preserved 23 app captures before cold reopen failed. Logcat at 18:33:26 records the new launch attached to the just-stopped process and `no app thread`; the final screenshot shows the launcher. This is not counted as cold-reopen acceptance or an app-code defect. The next audit waits for the process to disappear and its ActivityRecord to settle, uses am start -W, and allows bounded observed startup/onboarding completion. Application bytes remain unchanged; original KVM ACL was restored successfully.
+
+**Owner-directed cause-fix continuation (2026-10-01):** After the protocol stop,
+the owner requested removal of the recurring advisory itself. The application
+now declares `future-gym-dev` only for the explicit development variant; default
+and production configuration still has no scheme or standalone app identifier.
+The audit uses the normal `dev` command, checks both resolved manifests, removes
+the previous advisory-close action and lower-edge tab-tap workaround, and fails
+on the warning text in UI observations or logcat. No warnings are filtered. All
+23 native states, including empty history after cold restart, must pass again.
+A separate reference job renders the exact original 105,552-byte HTML at the
+same 390/1280 viewport widths in sandboxed Chrome for independent comparison.
+The reference and audit remain outside the application PR. Results are pending.

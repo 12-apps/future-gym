@@ -73,6 +73,14 @@ simulator, signing, store, background-alarm or production acceptance.
 
 ## Review corrections
 
+The owner subsequently requested removal of the recurring Expo advisory at its
+cause. The resolved runtime manifest contained no linking scheme and the pinned
+`expo-linking` resolver warns whenever the scheme list is empty. The normal
+development command now selects a development-only scheme through Expo config.
+No warning filter, LogBox override or Expo Go patch is present. The standalone
+identifiers and production scheme remain unset. A fresh native audit must reject
+the warning on initial launch and cold reopen rather than dismissing it.
+
 The initial review reproduced six defects: direct-link Back without a fallback,
 a stale daily plan across midnight, missing interactive-card roles, duplicate
 route pushes, duplicate/mixed editor exits, and a completed exercise still

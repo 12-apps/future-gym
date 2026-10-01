@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
+    "dev": "node scripts/start-dev.cjs",
     "android": "expo run:android",
     "lint": "eslint --max-warnings 0 .",
     "check-types": "tsc --noEmit",

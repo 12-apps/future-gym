@@ -83,3 +83,35 @@ jobs:
           if test -f "$RUNNER_TEMP/kvm-before.acl"; then
             sudo setfacl --restore="$RUNNER_TEMP/kvm-before.acl"
           fi
+
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser test tooling
+        run: npm install --prefix "$RUNNER_TEMP/reference-tooling" --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - name: Render the unchanged original prototype
+        run: NODE_PATH="$RUNNER_TEMP/reference-tooling/node_modules" node .ci/qa/capture-reference.cjs
+      - name: Preserve original reference artboards
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-prototype-reference-${{ github.sha }}
+          path: reference-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Emit artboards for direct review
+        if: always()
+        run: |
+          shopt -s nullglob
+          for file in reference-evidence/*.png; do
+            test -s "$file" || continue
+            echo "SCREENSHOT_BEGIN:$(basename "$file")"
+            base64 -w 0 "$file"
+            echo
+            echo 'SCREENSHOT_END'
+          done

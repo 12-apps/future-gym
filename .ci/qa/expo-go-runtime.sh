@@ -47,9 +47,10 @@ adb shell wm density 160
 APK=$(node -p "require('./runtime-evidence/expo-go-download.json').path")
 adb install "$APK"
 adb shell dumpsys package host.exp.exponent | grep -E 'versionName=|versionCode=' | tee "$OUT/expo-go-installed.txt"
-pnpm --dir apps/mobile exec expo config --type public --json > "$OUT/expo-config.json"
-node -e "const c=require('./runtime-evidence/expo-config.json'); if(c.android?.package) throw new Error('The proof must not assign an Android app identity'); console.log('SDK',c.sdkVersion,'android.package remains unset');"
-EXPO_UNSTABLE_HEADLESS=1 NODE_OPTIONS=--dns-result-order=ipv4first pnpm --dir apps/mobile exec expo start --go --localhost --port 8081 > "$OUT/metro.log" 2>&1 &
+APP_VARIANT=development NODE_ENV=development pnpm --dir apps/mobile exec expo config --type public --json > "$OUT/expo-config.json"
+APP_VARIANT=production NODE_ENV=production pnpm --dir apps/mobile exec expo config --type public --json > "$OUT/expo-production-config.json"
+node -e "const c=require('./runtime-evidence/expo-config.json'); if(c.android?.package || c.ios?.bundleIdentifier) throw new Error('The proof must not assign a native app identity'); if(c.scheme !== 'future-gym-dev') throw new Error('Development scheme is missing'); const p=require('./runtime-evidence/expo-production-config.json'); if(p.scheme || p.android?.package || p.ios?.bundleIdentifier) throw new Error('Production identity is still deferred'); console.log('SDK',c.sdkVersion,'development scheme configured; production identity remains unset');"
+EXPO_UNSTABLE_HEADLESS=1 NODE_OPTIONS=--dns-result-order=ipv4first pnpm --dir apps/mobile dev --localhost --port 8081 > "$OUT/metro.log" 2>&1 &
 METRO_PID=$!
 export METRO_PID
 timeout 180 bash -c 'until curl --max-time 5 --fail --silent http://127.0.0.1:8081/status | grep -q packager-status:running; do kill -0 "$METRO_PID" || exit 1; sleep 2; done'
@@ -92,7 +93,7 @@ launch
 wait_shell
 python3 .ci/qa/native-client-ui.py "$OUT"
 adb logcat -d > "$OUT/logcat.txt"
-if grep -E 'FATAL EXCEPTION|ReactNativeJS.*(TypeError|ReferenceError|Invariant Violation|Unable to resolve|Error:)' "$OUT/logcat.txt"; then
-  echo 'Native runtime error detected'; exit 1
+if grep -E 'Linking requires a build-time setting|Linking found multiple possible URI schemes|The provided Linking scheme|FATAL EXCEPTION|ReactNativeJS.*(TypeError|ReferenceError|Invariant Violation|Unable to resolve|Error:)' "$OUT/logcat.txt"; then
+  echo 'Native runtime error or linking warning detected'; exit 1
 fi
 echo 'Native client runtime proof passed: Expo Go SDK 57, initial render, repeated tab, resume, cold reopen and wide layout; no app applicationId assigned.'
