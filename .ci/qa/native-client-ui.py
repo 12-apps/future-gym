@@ -266,7 +266,25 @@ find("gym-home", True)
 shot("22-wide-home")
 adb("shell", "wm", "size", "390x844")
 adb("shell", "am", "force-stop", "host.exp.exponent")
-adb("shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "exp://127.0.0.1:8081", "-p", "host.exp.exponent")
+for attempt in range(30):
+    process = subprocess.run(["adb", "shell", "pidof", "host.exp.exponent"], capture_output=True, timeout=10)
+    if not process.stdout.strip():
+        break
+    time.sleep(0.2)
+else:
+    raise RuntimeError("Expo Go process did not stop for cold reopen")
+# Android can retain the old ActivityRecord briefly after the process disappears.
+time.sleep(1)
+print(adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "exp://127.0.0.1:8081", "-p", "host.exp.exponent").decode(), flush=True)
+for attempt in range(60):
+    nodes = observe()
+    if any(matches(n, "gym-home", True) for n in nodes):
+        break
+    # Dismiss only the same observed, non-binding Expo onboarding/menu controls.
+    subprocess.run(["python3", ".ci/qa/expo-go-ui.py", "onboarding", str(out / "current-client.xml")], check=True, timeout=30)
+    time.sleep(1)
+else:
+    raise RuntimeError("Native home did not return after synchronized cold reopen")
 find("gym-home", True)
 tap("Histórico")
 find("gym-history", True)
