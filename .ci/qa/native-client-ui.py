@@ -65,7 +65,10 @@ def find(value, by_id=False, scroll=False):
 def tap(value, by_id=False, scroll=False):
     node = find(value, by_id, scroll)
     left, top, right, bottom = bounds(node)
-    adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+    # Expo's accepted development advisory can cover the tab icon center.
+    # The label at the lower edge remains visible and is part of the same target.
+    y = bottom - max(2, (bottom - top) // 8) if value in ("Histórico", "Início", "Treinos") else (top + bottom) // 2
+    adb("shell", "input", "tap", str((left + right) // 2), str(y))
     time.sleep(0.3)
 
 def assert_text(value):
