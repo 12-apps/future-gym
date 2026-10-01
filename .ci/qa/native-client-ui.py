@@ -162,6 +162,17 @@ tap("Voltar à ficha", scroll=True)
 find("gym-home", True)
 choose_provider("sample-physio", "Fisioterapia Movimento")
 shot("09-physiotherapy-client-space")
+# Preserve the accepted warning visibly above, then dismiss its observed close
+# control to stop the development overlay intercepting navigation input.
+warning = next((n for n in observe() if n.attrib.get("content-desc", "").startswith("!, Linking requires a build-time setting")), None)
+if warning is not None:
+    close = [n for n in warning.iter("node") if n is not warning and n.attrib.get("clickable") == "true" and not n.attrib.get("content-desc") and not n.attrib.get("text")]
+    if len(close) != 1:
+        raise RuntimeError("Accepted warning has no uniquely observed close control")
+    left, top, right, bottom = bounds(close[0])
+    adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+    time.sleep(0.3)
+    shot("09b-development-advisory-dismissed")
 tap("Histórico")
 find("gym-history", True)
 assert_text("Seu primeiro treino começa aqui")

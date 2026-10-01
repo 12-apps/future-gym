@@ -578,3 +578,6 @@ may conceal a visible warning or claim production acceptance.
 
 
 **Second retry addendum (2026-10-01):** Run 36904345695 confirmed the fresh observer works on the live timer and captured nine app states through correct save, pause and rest controls. It stopped at History navigation: the screenshot shows the accepted development advisory overlay covers the tab icon midpoint, while the tab label remains visible below it. The next harness taps the observed tab target's lower label area; no app code or warning-suppression setting changes. Original KVM permissions were restored after the failed run. This is still not a completed runtime acceptance.
+
+
+**Observed overlay diagnosis (2026-10-01):** Run 36905642005 again stopped before History. A separate read-only artifact inspection (36906504552) confirms the tab bounds and the retained Expo warning overlay, including its unique close control. A lower-edge tap alone did not resolve input interception, so the prior overlay explanation was a hypothesis, not a proven fix. The next audit preserves the visible advisory capture, dismisses only its actually observed close control, records the resulting screen, and then retries ordinary History navigation. Console warnings remain unsuppressed. The actual application tree is unchanged; a further failure at this gate will be escalated rather than retried blindly.
