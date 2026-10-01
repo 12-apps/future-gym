@@ -16,7 +16,7 @@ function playerMock() {
     play: jest.fn(), pause: jest.fn(), release: jest.fn(), removeListener: jest.fn(),
     addListener: jest.fn((_event: string, listener: (status: AudioStatus) => void) => {
       statusListener = listener;
-      return { remove: () => players.find(player => player.emit === emit)?.removeListener() };
+      return { remove: (): void => { players.find(player => player.emit === emit)?.removeListener(); } };
     }),
     emit,
   };

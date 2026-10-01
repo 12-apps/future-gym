@@ -59,10 +59,13 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
     }
   }, [report]);
 
+  const cancelPending = useCallback(() => { request.current++; stop(); }, [stop]);
+  const invalidatePlayback = useCallback(() => { generation.current++; cancelPending(); }, [cancelPending]);
+
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; request.current++; stop(); };
-  }, [stop]);
+    return () => { mounted.current = false; cancelPending(); };
+  }, [cancelPending]);
 
   useEffect(() => {
     const version = ++generation.current;
@@ -89,8 +92,8 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
         return false;
       }
     })();
-    return () => { generation.current++; request.current++; stop(); };
-  }, [enabled, identity, report, stop]);
+    return invalidatePlayback;
+  }, [enabled, identity, report, stop, invalidatePlayback]);
 
   useEffect(() => {
     const previous = cursor.current;

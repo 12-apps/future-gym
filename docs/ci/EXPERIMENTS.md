@@ -632,3 +632,13 @@ mock. Both platform suites must execute. Cues must not complete sets, cross
 user/tenant/session boundaries, replay after interruption or request recording/
 background permissions. Any visible audio error or new runtime warning blocks
 the device gate.
+
+
+**Addendum (2026-10-01, first E-010 candidate):** CI 36925982152 rejected the
+first audio-only review unit before its tests: the hook cleanup incremented ref
+counters directly inside an effect cleanup, triggering the exhaustive-deps
+stale-ref warning, and the controlled player mock had a recursive inferred
+return type. Stable invalidation callbacks now own cancellation and the mock
+removal callback explicitly returns void. No lint suppression or relaxed type
+check is added. The failed run is not a native-unit or runtime pass; the corrected
+exact-head run must execute those tests before acceptance.
