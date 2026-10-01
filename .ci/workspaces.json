@@ -1,4 +1,6 @@
 {
-  "mode": "bootstrap",
-  "workspaces": []
+  "mode": "application",
+  "workspaces": [
+    "apps/mobile"
+  ]
 }

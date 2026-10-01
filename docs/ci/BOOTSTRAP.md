@@ -1,15 +1,21 @@
 # CI bootstrap and application activation
 
 `Repository Contracts` always runs real root tests, checks nonzero JUnit signal,
-lints workflow syntax and validates the documentation and ADR rules. During the
-explicit `.ci/workspaces.json` bootstrap state, no application has been built or
-tested. `CI Success` reports that limitation. It is not MVP acceptance.
+lints workflow syntax and validates the documentation and ADR rules. The first
+app now registers `apps/mobile` in application mode. Its lint, types, native
+tests and Android bundle are application evidence; they are not MVP acceptance.
+An explicitly empty bootstrap remains supported for a new repository, with
+application jobs reported as not run rather than green zero-task work.
 
 ## Add the actual application
 
-Resolve the React-web versus existing Expo-Android request before scaffolding.
-The accepted UI ADR remains binding. The Android package identifier, app name
-and distribution decision are still open in GYM-1; do not invent them here.
+The confirmed platform is Expo/React Native Android. The accepted UI ADR remains
+binding. Permanent Android identity and distribution decisions must come from
+the user; never invent a package identifier or signing setup. Those decisions
+are deferred and do not block foundation tests, bundling or an Expo Go runtime
+check. A matching SDK 57 Expo Go build provides its own native container while
+`android.package` remains unset. Runtime/on-screen evidence is still required
+by the delivery protocol; postponing identity does not waive that gate.
 
 In the same PR as the app:
 
@@ -20,13 +26,15 @@ In the same PR as the app:
 2. Give each workspace real `lint`, `check-types`, `test` and `build` scripts.
    Do not use success-only placeholders or `--passWithNoTests` as acceptance.
 3. Implement root `test:ci` and `test:ci:full`. Both must run actual workspace
-   tests and produce fresh JUnit XML under `reports/junit/workspaces`.
+   tests and produce fresh JUnit XML at `apps/mobile/reports/junit.xml` for the current native workspace.
    The PR command must widen safely when affected selection cannot be resolved
    or selects zero runnable tasks; the full command skips no workspace tests.
    Clear stale reports before each invocation. Preserve failing exit statuses.
-   At engine v2.48.2 the reusable application JUnit guard is PR-only: the
-   full command must separately reject zero/all-skipped results, or activation
-   must consume a validated engine release that checks them on push too.
+   Engine v2.49.2 runs the configured JUnit guard on PR, push, dispatch and
+   scheduled runs. The native Jest wrapper and root runner independently reject
+   zero/all-skipped JSON results on both paths, including cached full runs.
+   The central guard is defense in depth, not permission to remove that native
+   execution assertion.
 4. Configure the runner's JUnit reporter and Turbo outputs so cached test tasks
    restore their reports. Add actual build outputs and all root configuration,
    runtime and environment inputs that can change task results.
@@ -43,8 +51,32 @@ In the same PR as the app:
 8. Append actual run IDs, executed counts, cache evidence and both positive and
    negative outcomes to `EXPERIMENTS.md`. Verify full post-merge execution.
 
-Consumer entrypoints use engine v2.48.2 commit
-`be3300542208ebab5b30a75f58d018518f9d3459`. Internal engine actions still resolve
+Consumer entrypoints use engine v2.49.2 commit
+`dd17e765c6d3799cfc9a3cbeebf3cf640d368908`. Internal engine actions still resolve
 through its supported major references. Secrets and deployment are not added by
 this bootstrap; the existing ADR-index job still needs its separately configured
 `RENOVATE_TOKEN`.
+
+## Public infrastructure boundary
+
+Future Gym is open source. Every local CI job uses the standard GitHub-hosted
+`ubuntu-latest` runner, and every reusable workflow call explicitly supplies
+`runner: ubuntu-latest`. The shared engine must give this caller input precedence
+over any inherited `CI_RUNNER` variable. An observed GitHub-hosted run alone is
+not proof that future runs cannot inherit a different organization setting.
+
+The consumer contracts reject omitted/inherited/self-hosted runner selections,
+unreviewed reusable workflows, AWS credential/deployment/storage wiring, blanket
+secret inheritance and external Turbo remote-cache settings. Dependency/task
+caches use GitHub Actions; no AWS fleet or S3 storage is configured. Any future
+APK lane must preserve this boundary and use GitHub artifact storage. An Android
+export remains a bundle check, not device or APK acceptance.
+
+## Native runtime evidence
+
+E-008 records a successful GitHub-hosted Expo Go runtime audit of the screenless
+foundation with the final application identity still deferred. Actual screenshots
+cover first launch, repeated tab interaction, background/resume, cold reopen and
+phone/wide layouts. Expo's production-scheme advisory is visible in those captures;
+the strict no-new-warning gate is not claimed complete while that setting remains
+unresolved. No warning suppression or arbitrary permanent identity is introduced.

@@ -23,8 +23,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@be3300542208ebab5b30a75f58d018518f9d3459 # v2.48.2
+    uses: 12-apps/ci/.github/workflows/post-merge-regen.yml@dd17e765c6d3799cfc9a3cbeebf3cf640d368908 # v2.49.2
     with:
+      # Public repository: generation and token-holding jobs stay GitHub-hosted.
+      runner: ubuntu-latest
       command: node scripts/post-merge-regen.mjs
       title: 'chore(docs): regenerate the ADR index'
       # A literal block, never `>-`: the body becomes the commit body line for line.

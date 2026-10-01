@@ -112,13 +112,13 @@ test("full-tree fingerprint preserves modes, runtime config, docs and base input
 });
 test("workflow wires real root evidence, strict skips, validated engine and safe future app inputs", () => {
   const workflow = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
-  const pin = "be3300542208ebab5b30a75f58d018518f9d3459";
+  const pin = "dd17e765c6d3799cfc9a3cbeebf3cf640d368908";
   assert.match(workflow, /node --test --test-reporter=tap --test-reporter=junit/);
   assert.match(workflow, new RegExp(`vitest-signal-guard@${pin}`));
   assert.match(workflow, /reports: reports\/junit\/root.xml/);
   assert.match(workflow, /needs: \[repository-contracts, static, tests\]/);
   assert.match(workflow, /run: node scripts\/ci\/check-results.mjs/);
-  assert.match(workflow, /unit-junit-reports: reports\/junit\/workspaces/);
+  assert.match(workflow, /unit-junit-reports: apps\/mobile\/reports\/junit.xml/);
   assert.match(workflow, /unit-full-command: pnpm run test:ci:full/);
   assert.equal((workflow.match(/stack-aware: true/g) || []).length, 2);
   assert.equal((workflow.match(/fingerprint-command: git rev-parse 'HEAD\^\{tree\}'/g) || []).length, 4);

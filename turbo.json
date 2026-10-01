@@ -33,5 +33,17 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalDependencies": [
+    "tsconfig.base.json",
+    "scripts/ci/**",
+    ".ci/**",
+    ".github/workflows/ci.yml"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH",
+    "EXPO_UNSTABLE_TREE_SHAKING"
+  ]
 }

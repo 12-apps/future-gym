@@ -8,7 +8,10 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\""
+    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\"",
+    "test:ci": "node scripts/ci/run-mobile-tests.mjs",
+    "test:ci:full": "node scripts/ci/run-mobile-tests.mjs",
+    "dev:mobile": "pnpm --filter @repo/mobile dev"
   },
   "devDependencies": {
     "@12-apps/eslint-config": "1.22.0",
