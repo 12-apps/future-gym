@@ -112,7 +112,7 @@ describe("native client flows through the real router", () => {
     await screen.findByTestId("gym-home");
     fireEvent.press(screen.getByText("Histórico"));
     await screen.findByTestId("gym-history");
-    expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
+    expect(screen.getByText("Nenhum treino concluído ainda")).toBeOnTheScreen();
     expect(screen.queryByText("400 kg")).toBeNull();
   });
   it("selects either of two personal trainers and keeps their sessions and histories separate", async () => {
@@ -159,7 +159,7 @@ describe("native client flows through the real router", () => {
     await changeProvider("sample-personal-rafael");
     fireEvent.press(screen.getByText("Histórico"));
     await screen.findByTestId("gym-history");
-    expect(screen.getByText("Seu primeiro treino começa aqui")).toBeOnTheScreen();
+    expect(screen.getByText("Nenhum treino concluído ainda")).toBeOnTheScreen();
     expect(screen.queryByText("120 kg")).toBeNull();
     fireEvent.press(screen.getByText("Início"));
     await screen.findByTestId("gym-home");

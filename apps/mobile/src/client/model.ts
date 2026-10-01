@@ -19,6 +19,10 @@ export interface Workout {
   exercises: readonly Exercise[];
 }
 
+/** Same estimate as the reference: performed-time plan plus inter-exercise transitions. */
+export const plannedWorkoutSeconds = (workout: Workout) => workout.exercises.reduce((total, exercise) =>
+  total + exercise.sets * exercise.executionSeconds + Math.max(0, exercise.sets - 1) * exercise.restSeconds + 90, 0);
+
 export interface SetLog {
   kg: number;
   repetitions: number;

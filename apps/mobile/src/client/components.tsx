@@ -13,16 +13,21 @@ import { useUiTheme } from "@12-apps/ui/provider";
 import { Heading } from "@12-apps/ui/typography/Heading";
 import { Text } from "@12-apps/ui/typography/Text";
 import { usePathname } from "expo-router";
-import { useRef, useState, type PropsWithChildren } from "react";
+import { useRef, useState, type PropsWithChildren, type ReactNode } from "react";
 import { CLIENT_COPY } from "./copy";
 import { useClient } from "./context";
 import { useSingleNavigation } from "./navigation";
 import { selectTenant, type Workout } from "./model";
 import { SAMPLE_PROVIDERS, sampleRolesForTenant } from "./sample-data";
 
-export function Page({ children, testID, tabs = false }: PropsWithChildren<{ testID: string; tabs?: boolean }>) {
-  return <Screen dataTestId={testID} safeAreaEdges={tabs ? ["top", "left", "right"] : ["top", "right", "bottom", "left"]}>
-    <Container maxWidth="sm" padding="none"><Stack p={2} gap={3}>{children}</Stack></Container>
+export function Page({ children, testID, tabs = false, footer }: PropsWithChildren<{ testID: string; tabs?: boolean; footer?: ReactNode }>) {
+  const theme = useUiTheme();
+  const content = <Container maxWidth={false} responsive={false} padding="none" style={{ maxWidth: theme.spacing(60) }}><Stack p={2} gap={3}>{children}</Stack></Container>;
+  return <Screen dataTestId={testID} scroll={!footer} safeAreaEdges={tabs ? ["top", "left", "right"] : ["top", "right", "bottom", "left"]}>
+    {footer ? <>
+      <Screen dataTestId={`${testID}-body`} safeAreaEdges={[]} keyboardAvoiding={false}>{content}</Screen>
+      <Box bg="paper" dataTestId={`${testID}-footer`}><Container maxWidth={false} responsive={false} padding="none" style={{ maxWidth: theme.spacing(60) }}><Stack p={2} gap={1}>{footer}</Stack></Container></Box>
+    </> : content}
   </Screen>;
 }
 export function Muted({ children }: PropsWithChildren) {
@@ -33,7 +38,7 @@ export function SectionTitle({ children }: PropsWithChildren) {
   return <Heading level="h2" size="h5">{children}</Heading>;
 }
 export function Plate({ letter, small = false }: { letter: string; small?: boolean }) {
-  const color = letter === "A" ? "danger" : letter === "B" ? "primary" : letter === "C" ? "warning" : "success";
+  const color = letter === "–" || letter === "·" ? "neutral" : letter === "A" ? "danger" : letter === "B" ? "primary" : letter === "C" ? "warning" : "success";
   return <Avatar fallback={letter} size={small ? "sm" : "lg"} color={color} bordered alt={`${letter}`} />;
 }
 export function ProviderHeader() {
