@@ -50,6 +50,8 @@ test("the cross-platform dev command selects Expo Go and the explicit developmen
   assert.equal(JSON.parse(read("package.json")).scripts.dev, "node scripts/start-dev.cjs");
   assert.match(read("scripts/start-dev.cjs"), /"start", "--go", \.\.\.process\.argv\.slice\(2\)/);
   assert.match(read("scripts/build-android.cjs"), /APP_VARIANT: "production"/);
+  const turbo = JSON.parse(readFileSync(new URL("../../turbo.json", import.meta.url), "utf8"));
+  assert.ok(turbo.globalEnv.includes("APP_VARIANT"), "Expo variant participates in Turbo environment and cache keys");
   for (const file of ["app.config.js", "scripts/start-dev.cjs"])
     assert.doesNotMatch(read(file), /LogBox|ignoreLogs|ignoreAllLogs|console\.warn\s*=/);
 });

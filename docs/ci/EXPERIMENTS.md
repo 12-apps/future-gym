@@ -592,3 +592,9 @@ advisory dismissal. Default/production config must not inherit the development
 scheme. No Android package/iOS bundle identifier is assigned. The audit must
 prove warning-free initial and cold launches, preserve screenshots, use only
 the authorized temporary runner KVM ACL and always restore its original value.
+
+**Addendum (2026-10-01):** First exact-head CI 36915179972 passed the 46 root
+contracts and types, but lint correctly rejected the new `APP_VARIANT` because
+it was not declared in Turbo. The variable is now in `globalEnv` and the config
+regression also pins that declaration. This keeps variant-dependent configuration
+inside the task environment/cache identity rather than silencing the lint rule.
