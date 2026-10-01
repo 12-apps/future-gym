@@ -1,0 +1,33 @@
+name: Inspect native audit evidence
+on:
+  push:
+    branches: [ci/gym-4-runtime-inspect]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-client-runtime-dfe9900344d8e71448e9b997b659f6017a1ed922
+          run-id: 36905642005
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Inspect actual accessibility targets
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          for filename in ['current-client.xml','final.xml']:
+              p=Path('evidence')/filename
+              if p.exists():
+                  print('XML_FILE', filename)
+                  root=ET.parse(p).getroot()
+                  for n in root.iter('node'):
+                      a=n.attrib
+                      if a.get('text') or a.get('content-desc') or a.get('resource-id'):
+                          print(a)
+          PY
