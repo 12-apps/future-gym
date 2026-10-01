@@ -1,0 +1,85 @@
+name: Native client Android runtime proof
+on:
+  push:
+    branches: [ci/gym-4-native-client-runtime]
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_NO_CACHE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - name: Install locked native dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Resolve and download official Expo Go for SDK 57
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-evidence "$RUNNER_TEMP/expo-go"
+          cd "$RUNNER_TEMP/expo-go"
+          npx --yes expo-go@0.2.0 versions android --stable --limit 5 --json > "$GITHUB_WORKSPACE/runtime-evidence/expo-go-versions.json"
+          node -e "const x=require(process.env.GITHUB_WORKSPACE+'/runtime-evidence/expo-go-versions.json'); if(!x.versions.some(v=>v.sdkVersion===57)) throw new Error('No stable SDK 57 Expo Go build is available');"
+          npx --yes expo-go@0.2.0 download android 57 --json > "$GITHUB_WORKSPACE/runtime-evidence/expo-go-download.json"
+          cat "$GITHUB_WORKSPACE/runtime-evidence/expo-go-versions.json"
+      - name: Configure isolated Android emulator homes
+        run: |
+          {
+            echo "ANDROID_USER_HOME=$RUNNER_TEMP/gym-android"
+            echo "ANDROID_EMULATOR_HOME=$RUNNER_TEMP/gym-android"
+            echo "ANDROID_AVD_HOME=$RUNNER_TEMP/gym-android/avd"
+          } >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gym-android/avd"
+      - name: Install official emulator components without accepting new licenses
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)
+          test -x "$SDKMANAGER"
+          export PATH="$(dirname "$SDKMANAGER"):$PATH"
+          sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
+          printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5 --path "$ANDROID_AVD_HOME/gym-proof.avd"
+          avdmanager list avd
+          find "$ANDROID_USER_HOME" -maxdepth 3 -name '*.ini' -print
+      - name: Allow this temporary runner to use Android acceleration
+        if: runner.environment == 'github-hosted'
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = runner
+          getfacl -p /dev/kvm > "$RUNNER_TEMP/kvm-before.acl"
+          sudo setfacl -m u:runner:rw /dev/kvm
+          getfacl -p /dev/kvm
+      - name: Boot, drive and capture the native client
+        run: bash .ci/qa/expo-go-runtime.sh
+      - name: Preserve runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-client-runtime-${{ github.sha }}
+          path: runtime-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Emit screenshots for direct review
+        if: always()
+        run: |
+          shopt -s nullglob
+          for file in runtime-evidence/*.png; do
+            test -s "$file" || continue
+            echo "SCREENSHOT_BEGIN:$(basename "$file")"
+            base64 -w 0 "$file"
+            echo
+            echo 'SCREENSHOT_END'
+          done
+      - name: Restore this job's original virtualization permissions
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/kvm-before.acl"; then
+            sudo setfacl --restore="$RUNNER_TEMP/kvm-before.acl"
+          fi

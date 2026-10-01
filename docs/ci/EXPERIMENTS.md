@@ -559,3 +559,16 @@ parse decoded UI labels, and preserve a screenshot for every runtime state.
 Only the separately approved temporary user ACL may change and it must be
 restored even on failure. Neither bundle success nor a passing runtime script
 may conceal a visible warning or claim production acceptance.
+
+
+### E-009 — Native client Android acceptance audit
+
+**Status:** Open — 2026-10-01
+
+**Question:** Does prototype c7dfb236769e56d82e969fe8cec9fde1d5490de4 pass its real Android screen, keyboard, session and tenant-isolation flows?
+
+**Method:** Isolated GitHub-hosted ubuntu-latest audit using official Expo Go SDK 57 and Android API 35. Drive 23 captured states, including two personal trainers, validation/cancel, timers, completed-set volume, empty-save refusal, discard, lifecycle and phone/wide layouts. The application tree is unchanged. This audit has explicit temporary permission for the runner user to access /dev/kvm; save the original ACL and restore it with always() cleanup. No AWS, account permissions, final app identity or signing changes. The production-scheme advisory is accepted only in development; production remains deferred.
+
+**Result:** Python/shell syntax, actionlint and 43 existing root contracts pass before dispatch. Actual runtime result pending; preparation is not execution proof.
+
+**Regression watch:** Preserve the exact source SHA, every capture and error path, both provider identities, explicit disabled-save assertion, original ACL restoration and no-runtime-error assertions. Bundle success never substitutes for native screenshots. This workflow remains outside application PRs.
