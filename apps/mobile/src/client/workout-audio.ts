@@ -23,8 +23,15 @@ export interface WorkoutAudioError {
 
 interface ActiveCue {
   player: AudioPlayer;
+  cue: WorkoutAudioCue;
+  requestedAt: number;
+  createdAt: number;
   subscription?: { remove(): void };
   timer?: ReturnType<typeof setTimeout>;
+}
+
+function traceAudio(event: string, details: Record<string, unknown>) {
+  if (__DEV__) console.info("Workout audio diagnostic", event, JSON.stringify(details));
 }
 
 /**
@@ -44,14 +51,15 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
   const identity = workoutAudioIdentity(session);
 
   const report = useCallback((code: WorkoutAudioError["code"], cause: unknown) => {
+    console.warn(`Workout audio ${code} failed${mounted.current ? "" : " during cleanup"}`, cause);
     if (mounted.current) setError({ code, cause });
-    else console.warn(`Workout audio ${code} failed during cleanup`, cause);
   }, []);
 
-  const stop = useCallback(() => {
+  const stop = useCallback((reason = "cancel", details: Record<string, unknown> = {}) => {
     const playing = active.current;
     active.current = null;
     if (!playing) return;
+    traceAudio("stop", { reason, cue: playing.cue, requestedAt: playing.requestedAt, createdAt: playing.createdAt, at: Date.now(), ...details });
     clearTimeout(playing.timer);
     // Unregister before releasing: Expo's native foreground callback otherwise
     // retains the disposed player and may try to resume its released resources.
@@ -61,7 +69,7 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
     }
   }, [report]);
 
-  const cancelPending = useCallback(() => { request.current++; stop(); }, [stop]);
+  const cancelPending = useCallback(() => { request.current++; stop("cancel-pending"); }, [stop]);
   const invalidatePlayback = useCallback(() => { generation.current++; cancelPending(); }, [cancelPending]);
 
   useEffect(() => {
@@ -72,7 +80,7 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
   useEffect(() => {
     const version = ++generation.current;
     request.current++;
-    stop();
+    stop("configuration");
     if (!enabled || !identity) {
       ready.current = Promise.resolve(false);
       return;
@@ -104,7 +112,7 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
     const delayed = !!previous && (now < previous.observation.now || now - previous.observation.now > MAX_AUDIO_UPDATE_GAP_MS);
     if (!session || !enabled || session.paused || delayed || workoutAudioIdentity(previous?.observation.session) !== identity) {
       request.current++;
-      stop();
+      stop(delayed ? "delayed-observation" : "disabled-paused-or-identity", { previousNow: previous?.observation.now, now });
     }
     const cue = observation.cue;
     if (!cue) return;
@@ -113,22 +121,27 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
     void ready.current.then((configured) => {
       const age = Date.now() - requestedAt;
       if (!configured || !mounted.current || request.current !== token || age < 0 || age > MAX_CUE_START_DELAY_MS) return;
-      stop();
+      stop("replace-cue");
       try {
         // A fresh, short-lived player avoids seek races and replaying a finished source.
+        const creatingAt = Date.now();
         const player = createAudioPlayer(SOURCES[cue], { updateInterval: 100, keepAudioSessionActive: false });
-        const playing: ActiveCue = { player };
+        const playing: ActiveCue = { player, cue, requestedAt, createdAt: Date.now() };
         active.current = playing;
         let started = false;
         const expiresAt = requestedAt + MAX_CUE_START_DELAY_MS + CUE_DURATION_MS[cue];
+        traceAudio("created", { cue, requestedAt, creatingAt, createdAt: playing.createdAt, expiresAt });
         playing.subscription = player.addListener("playbackStatusUpdate", (status) => {
           if (active.current !== playing) return;
+          const observedAt = Date.now();
+          const expired = observedAt > expiresAt;
+          traceAudio("status", { cue, at: observedAt, playing: status.playing, buffering: status.isBuffering, finished: status.didJustFinish, position: status.currentTime });
           if (status.error || status.mediaServicesDidReset) {
             report("playback", status.error ?? new Error("Audio media services were reset"));
-            stop();
-          } else if (status.didJustFinish || Date.now() > expiresAt || (started && !status.playing && !status.isBuffering)) {
+            stop("native-error");
+          } else if (status.didJustFinish || expired || (started && !status.playing && !status.isBuffering)) {
             // An interrupted chime is disposable; it must not be resumed intentionally.
-            stop();
+            stop(status.didJustFinish ? "finished" : expired ? "status-expired" : "native-interrupted");
           } else if (status.playing) {
             started = true;
           }
@@ -141,6 +154,7 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
               // Fresh players never seek, so native progress proves it did start.
               const playingNow = player.playing;
               const position = player.currentTime;
+              traceAudio("deadline-progress", { cue, at: Date.now(), playing: playingNow, position });
               if (!playingNow && !(Number.isFinite(position) && position > 0)) {
                 report("playback", new Error("The workout cue did not start before its deadline"));
               }
@@ -148,12 +162,13 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
               report("playback", cause);
             }
           }
-          stop();
+          stop("deadline", { started });
         }, Math.max(0, expiresAt - Date.now()));
+        traceAudio("play", { cue, at: Date.now() });
         player.play();
       } catch (cause) {
         report("playback", cause);
-        stop();
+        stop("invocation-error");
       }
     });
   }, [session, now, enabled, identity, report, stop]);

@@ -954,3 +954,27 @@ cover four scenarios, including denied diagnostics. Independent review and
 the root's fresh cleanup test pass. Both previous private servers and KVM
 restoration passed; the old emulator XIO line occurred during dependency teardown
 and is not silently reclassified as clean exit. Real complete audit pending.
+
+**Addendum (2026-10-02, measure early cancellation before changing policy):**
+Run37068097713 consumed90dca82, whose exact CI37067891784 passed254 actual
+renderer cases and46 root contracts. The native gate failed at the initial
+live lifecycle observation:78 snapshots in4.025s never contained a current
+app-owned active configuration. The first snapshot containing piid103 already
+held all historical started/paused/stopped events; its active interval was64ms.
+No HOME was sent, no source runtime acceptance is claimed, and historical
+events are not substituted for the unchanged current-active requirement.
+
+Actual emulator cleanup is now proved: normal exit0/reaped before both private
+servers, no XIO, KVM restored. Service diagnostics are captured; ALSA/kernel
+are recorded unavailable, not escalated or claimed as proof. Guest PCM write
+errors persisted77 times. Host routing alone still does not establish delivery.
+
+Independent scratch tests reproduce both a pre-cue screen-clock catch-up
+cancellation and construction consuming the request-relative lifetime. Neither
+is proven to be this native branch. Consumer7295e2c therefore only adds bounded
+development INFO reasons/wall-clock timestamps without session/person/tenant
+identities, and preserves actual error code/cause in WARN plus the existing UI.
+No playback threshold, cancellation policy, observer or warning gate changes.
+Production emits no diagnostic INFO;62 focused audio and256 full renderer
+cases pass, zero skips, lint/types green. The next exact-source run must supply
+the actual cancellation reason and all remaining native acceptance evidence.
