@@ -1,6 +1,7 @@
 """Harness contract tests only. These are not native execution/audio evidence."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import tempfile
 from contextlib import ExitStack
@@ -16,6 +17,10 @@ APP = "10-01 21:00:00.000 1234 2345 I ReactNativeJS: Running main\n"
 
 
 class NativeAuditContract(unittest.TestCase):
+    def test_exact_error_selector_matches_the_real_application_copy(self):
+        copy = (Path(__file__).resolve().parents[2] / "apps/mobile/src/client/copy.ts").read_text()
+        self.assertEqual(audit.INVALID_SET, re.search(r'invalidSet: "([^"]+)"', copy).group(1))
+
     def test_every_reference_has_two_counterparts(self):
         self.assertEqual(len(audit.COUNTERPARTS), 10)
         self.assertEqual(audit.VIEWPORTS, [(390, 844), (1280, 800)])

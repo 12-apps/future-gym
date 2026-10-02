@@ -22,7 +22,7 @@ COUNTERPARTS = ["01-home", "02-empty-history", "03-workout", "04-session-ready",
                 "05-edited-set", "06-paused", "07-rest", "08-partial-finish",
                 "09-summary", "10-history"]
 VIEWPORTS = [(390, 844), (1280, 800)]
-INVALID_SET = "Use carga de 0 a 1.000 kg e 1 a 100 repetições inteiras"
+INVALID_SET = "Use carga de 0 a 1.000 kg e 1 a 100 repetições inteiras. Carga aceita até duas casas decimais."
 PACKAGE = "host.exp.exponent"
 out = None
 shots = []

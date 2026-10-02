@@ -732,3 +732,13 @@ prove heard sound. A contract rejects historical events and other-app players
 as active playback. All 19 local harness contracts pass. Consumer bytes remain
 exactly 95f96d3 and its remote CI36964854360 is green; native execution remains
 required for the newly added lifecycle path.
+
+
+**Addendum (2026-10-02, exact error selector):** Audit36964939629 passed
+large-font controls/restoration and both original invalid-inline cases. Its new
+main-completion case kept the invalid draft and pending set correctly, but the
+exact-text finder received only the first sentence fragment of the real error
+message. The preserved hierarchy contains the full two-sentence error below
+the viewport. Use that exact copy, with a contract comparing it to the real
+application locale so an incomplete exact selector fails locally. No app/error
+assertion is weakened. All20 harness contracts pass.
