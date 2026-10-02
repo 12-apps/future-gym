@@ -1,4 +1,5 @@
 """Harness contract tests only. These are not native execution/audio evidence."""
+import hashlib
 import importlib.util
 import json
 import re
@@ -14,6 +15,17 @@ audit = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(audit)
 MONITOR = "PlaybackActivityMonitor dump time: 21:00:00\n"
 APP = "10-01 21:00:00.000 1234 2345 I ReactNativeJS: Running main\n"
+
+
+def write_log_capture(directory, body):
+    raw = ("GYM_AUDIT_BEGIN_test\n" + body + "\nGYM_AUDIT_END_test\n").encode()
+    (directory / "logcat.txt").write_bytes(raw)
+    capture = {"status": "complete", "file": "logcat.txt", "beginMarker": "GYM_AUDIT_BEGIN_test",
+               "endMarker": "GYM_AUDIT_END_test", "collectorPid": 4321, "collectorExitCode": 143,
+               "buffers": "all", "filter": "*:V", "bytes": len(raw),
+               "sha256": hashlib.sha256(raw).hexdigest(), "errors": []}
+    (directory / "logcat-capture.json").write_text(json.dumps(capture))
+    return capture
 
 
 class NativeAuditContract(unittest.TestCase):
@@ -245,14 +257,77 @@ class NativeAuditContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
             stack.enter_context(patch.object(audit, "out", Path(folder)))
             adb = stack.enter_context(patch.object(audit, "adb", side_effect=[x.encode() for x in [MONITOR, history, other_app, current]]))
-            stack.enter_context(patch.object(audit.time, "sleep"))
+            sleep = stack.enter_context(patch.object(audit.time, "sleep"))
             active, snapshots, elapsed = audit.wait_for_active_cue(10081)
             self.assertEqual(active, {current.splitlines()[1]})
             self.assertEqual(adb.call_count, 4)
             self.assertTrue(all(call.args == ("shell", "dumpsys", "audio") for call in adb.call_args_list))
             self.assertEqual(len(snapshots), 4)
             self.assertGreaterEqual(elapsed, 0)
+            sleep.assert_not_called()
             self.assertFalse((Path(folder) / "audio-lifecycle-observation.json").exists(), "No file IO may delay HOME after active playback is observed")
+
+    def test_lifecycle_observer_sends_home_before_input_returns_and_evidence_io(self):
+        events = []
+        home = audit.threading.Event()
+        active = {"Player piid:11 u/pid:10081/1234 state:started"}
+        def tap(node, *, settle, before_input):
+            self.assertEqual(settle, 0)
+            events.append("tap")
+            before_input()
+            self.assertTrue(home.wait(2), "Observer must not wait for the input process to finish")
+        def sample(uid, *, started, diagnose):
+            self.assertEqual(uid, 10081)
+            self.assertIsInstance(started, float)
+            self.assertFalse(diagnose)
+            events.append("active")
+            return active, [MONITOR], 0.1
+        def adb(*args):
+            self.assertEqual(args, ("shell", "input", "keyevent", "KEYCODE_HOME"))
+            events.append("home")
+            home.set()
+            return b""
+        with patch.object(audit, "tap_node", side_effect=tap) as input_tap, patch.object(audit, "wait_for_active_cue", side_effect=sample), patch.object(audit, "adb", side_effect=adb), patch.object(audit, "record_lifecycle_foreground", side_effect=lambda *args: events.append("record")):
+            observed, background_at = audit.start_and_background(ET.Element("node"), 10081)
+            self.assertEqual(observed, active)
+            self.assertIsInstance(background_at, float)
+            input_tap.assert_called_once()
+        self.assertEqual(events, ["tap", "active", "home", "record"])
+
+    def test_lifecycle_observation_failure_never_sends_home_or_retries(self):
+        def tap(node, *, settle, before_input):
+            before_input()
+        with patch.object(audit, "tap_node", side_effect=tap) as input_tap, patch.object(audit, "wait_for_active_cue", side_effect=RuntimeError("no current playback")), patch.object(audit, "adb") as adb:
+            with self.assertRaisesRegex(RuntimeError, "no current playback"):
+                audit.start_and_background(ET.Element("node"), 10081)
+            input_tap.assert_called_once()
+            adb.assert_not_called()
+
+    def test_lifecycle_unreachable_control_never_arms_playback_observation(self):
+        with patch.object(audit, "tap_node", side_effect=RuntimeError("ambiguous target")), patch.object(audit, "wait_for_active_cue") as sample, patch.object(audit, "adb") as adb:
+            with self.assertRaisesRegex(RuntimeError, "ambiguous target"):
+                audit.start_and_background(ET.Element("node"), 10081)
+            sample.assert_not_called()
+            adb.assert_not_called()
+
+    def test_lifecycle_timeout_diagnostics_run_only_after_worker_on_main_thread(self):
+        main = audit.threading.current_thread()
+        worker = []
+        def tap(node, *, settle, before_input):
+            before_input()
+        def sample(uid, *, started, diagnose):
+            self.assertFalse(diagnose)
+            self.assertIsNot(audit.threading.current_thread(), main)
+            worker.append(audit.threading.current_thread())
+            return set(), [MONITOR], 4.0
+        def diagnostic(timeout):
+            self.assertIs(audit.threading.current_thread(), main)
+            self.assertFalse(worker[0].is_alive())
+            raise RuntimeError("fresh main-thread diagnosis")
+        with patch.object(audit, "tap_node", side_effect=tap), patch.object(audit, "wait_for_active_cue", side_effect=sample), patch.object(audit, "record_lifecycle_foreground"), patch.object(audit, "lifecycle_timeout_diagnostic", side_effect=diagnostic), patch.object(audit, "adb") as adb:
+            with self.assertRaisesRegex(RuntimeError, "fresh main-thread diagnosis"):
+                audit.start_and_background(ET.Element("node"), 10081)
+            adb.assert_not_called()
 
     def test_lifecycle_timeout_keeps_fresh_state_and_never_repeats_action(self):
         for phase in ["PRONTO", "EXECUÇÃO"]:
@@ -319,14 +394,36 @@ class NativeAuditContract(unittest.TestCase):
             directory = Path(folder)
             (directory / "result.json").write_text(json.dumps({"status": "ui-passed-awaiting-log-gate"}))
             (directory / "metro.log").write_text("Bundled")
-            (directory / "logcat.txt").write_text(APP + "FATAL EXCEPTION")
+            write_log_capture(directory, APP + "FATAL EXCEPTION")
             with self.assertRaises(RuntimeError):
                 audit.finalize_log_gate(directory)
             self.assertEqual(json.loads((directory / "result.json").read_text())["status"], "failed-log-gate")
             (directory / "result.json").write_text(json.dumps({"status": "ui-passed-awaiting-log-gate"}))
-            (directory / "logcat.txt").write_text(APP)
+            write_log_capture(directory, APP)
             audit.finalize_log_gate(directory)
             self.assertEqual(json.loads((directory / "result.json").read_text())["status"], "passed")
+
+    def test_incomplete_or_changed_native_logs_never_finalize_ui_acceptance(self):
+        cases = ["missing", "status", "errors", "hash", "bytes", "exit", "buffers", "filter", "pid", "truncated", "reordered", "duplicate"]
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as folder:
+                directory = Path(folder)
+                (directory / "result.json").write_text(json.dumps({"status": "ui-passed-awaiting-log-gate"}))
+                (directory / "metro.log").write_text("Bundled")
+                capture = write_log_capture(directory, APP)
+                changes = {"status": {"status": "failed"}, "errors": {"errors": ["stream ended early"]}, "hash": {"sha256": "bad"}, "bytes": {"bytes": 1}, "exit": {"collectorExitCode": 7}, "buffers": {"buffers": "main"}, "filter": {"filter": "ReactNativeJS:V"}, "pid": {"collectorPid": 0}}
+                capture.update(changes.get(case, {}))
+                if case in ["truncated", "reordered", "duplicate"]:
+                    raw = (directory / "logcat.txt").read_bytes()
+                    if case == "truncated": raw = raw[:20]
+                    if case == "reordered": raw = b"GYM_AUDIT_END_test\n" + APP.encode() + b"GYM_AUDIT_BEGIN_test\n"
+                    if case == "duplicate": raw += b"GYM_AUDIT_END_test\n"
+                    (directory / "logcat.txt").write_bytes(raw)
+                    capture.update(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+                (directory / "logcat-capture.json").write_text(json.dumps(capture))
+                if case == "missing": (directory / "logcat-capture.json").unlink()
+                with self.assertRaises(RuntimeError): audit.finalize_log_gate(directory)
+                self.assertEqual(json.loads((directory / "result.json").read_text())["status"], "failed-log-gate")
 
 
 if __name__ == "__main__":

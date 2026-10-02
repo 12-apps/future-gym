@@ -3,6 +3,7 @@
 Paired native captures correspond to capture-reference.cjs at 390x844/1280x800.
 The audio proof is Android playback-service activity, never audible host output.
 """
+import hashlib
 import json
 import re
 import subprocess
@@ -175,7 +176,7 @@ def ensure_control_reachable(value="toggle-sound", by_id=True, *, label=None, no
     return target
 
 
-def tap_node(node, *, settle=0.3):
+def tap_node(node, *, settle=0.3, before_input=None):
     identity = node.attrib.get("resource-id")
     label = node.attrib.get("content-desc") or node.attrib.get("text")
     if identity or label:
@@ -187,6 +188,8 @@ def tap_node(node, *, settle=0.3):
     if node.attrib.get("enabled") == "false":
         raise RuntimeError("Refusing to tap disabled control: " + node.attrib.get("resource-id", ""))
     left, top, right, bottom = bounds(node)
+    if before_input:
+        before_input()
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
     time.sleep(settle)
 
@@ -524,9 +527,18 @@ def record_lifecycle_foreground(active, snapshots, elapsed, timeout):
     }, indent=2))
 
 
-def wait_for_active_cue(uid, timeout=4):
+def lifecycle_timeout_diagnostic(timeout):
+    # Always called by the main thread after observation has terminated.
+    fresh = observe()
+    (out / "audio-lifecycle-post-action.xml").write_bytes((out / "current-client.xml").read_bytes())
+    shot("audio-lifecycle-no-active-cue")
+    phase = "execution" if "EXECUÇÃO" in visible_text(fresh) else "execution not observed"
+    raise RuntimeError(f"Lifecycle probe did not observe active foreground playback within {timeout}s ({phase})")
+
+
+def wait_for_active_cue(uid, timeout=4, *, started=None, diagnose=True):
     """Bounded native observation after one tap; never repeat an app action."""
-    started = time.monotonic()
+    started = time.monotonic() if started is None else started
     snapshots = []
     active = set()
     while time.monotonic() - started < timeout:
@@ -537,17 +549,60 @@ def wait_for_active_cue(uid, timeout=4):
         active = active_owned_playback(snapshot, uid)
         if active:
             break
-        time.sleep(0.05)
+        # These cues can expose active native configurations for under 200ms.
+        # The dumpsys call already paces sampling; an extra sleep can miss them.
     elapsed = time.monotonic() - started
-    if not active:
+    if not active and diagnose:
         record_lifecycle_foreground(active, snapshots, elapsed, timeout)
-        # The old retained hierarchy was pre-tap and could misdiagnose delayed UI.
-        fresh = observe()
-        (out / "audio-lifecycle-post-action.xml").write_bytes((out / "current-client.xml").read_bytes())
-        shot("audio-lifecycle-no-active-cue")
-        phase = "execution" if "EXECUÇÃO" in visible_text(fresh) else "execution not observed"
-        raise RuntimeError(f"Lifecycle probe did not observe active foreground playback within {timeout}s ({phase})")
+        lifecycle_timeout_diagnostic(timeout)
     return active, snapshots, elapsed
+
+
+def start_and_background(node, uid):
+    """Arm before the only input; background immediately in the audio observer."""
+    canceled = threading.Event()
+    result, failures = {}, []
+    thread = None
+
+    def sample():
+        try:
+            active, snapshots, elapsed = wait_for_active_cue(uid, started=result["tapAt"], diagnose=False)
+            result.update(active=active, snapshots=snapshots, elapsed=elapsed)
+            if canceled.is_set():
+                return
+            if active:
+                adb("shell", "input", "keyevent", "KEYCODE_HOME")
+                result["backgroundAt"] = time.monotonic()
+        except Exception as error:
+            failures.append(error)
+
+    def arm():
+        nonlocal thread
+        result["tapAt"] = time.monotonic()
+        thread = threading.Thread(target=sample, daemon=True)
+        thread.start()
+
+    try:
+        tap_node(node, settle=0, before_input=arm)
+    except Exception:
+        canceled.set()
+        if thread:
+            thread.join(timeout=35)
+        raise
+    if thread is None:
+        raise RuntimeError("Lifecycle input did not arm the audio observer")
+    thread.join(timeout=35)
+    if thread.is_alive():
+        canceled.set()
+        raise RuntimeError("Lifecycle audio observer did not terminate")
+    if failures:
+        raise failures[0]
+    record_lifecycle_foreground(result["active"], result["snapshots"], result["elapsed"], 4)
+    if not result["active"]:
+        lifecycle_timeout_diagnostic(4)
+    if "backgroundAt" not in result:
+        raise RuntimeError("Lifecycle audio observer did not establish active playback before HOME")
+    return result["active"], result["backgroundAt"]
 
 
 def audio_background_probe():
@@ -560,13 +615,7 @@ def audio_background_probe():
     (out / "audio-lifecycle-before-tap.txt").write_text(baseline)
     if active_owned_playback(baseline, uid):
         raise RuntimeError("Lifecycle probe requires a silent baseline before its single Start tap")
-    # No fixed settling sleep: an early single dump can precede React's update,
-    # while a longer fixed sleep can miss the short real cue altogether.
-    tap_node(node, settle=0)
-    active, foreground_snapshots, foreground_delay = wait_for_active_cue(uid)
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    background_at = time.monotonic()
-    record_lifecycle_foreground(active, foreground_snapshots, foreground_delay, 4)
+    active, background_at = start_and_background(node, uid)
     stopped_after = None
     traces = []
     for _ in range(20):
@@ -713,17 +762,30 @@ def finalize_log_gate(directory):
     result = json.loads(result_path.read_text())
     if result.get("status") != "ui-passed-awaiting-log-gate":
         raise RuntimeError("Cannot finalize an incomplete native UI audit")
-    logcat = (directory / "logcat.txt").read_text(errors="replace")
-    metro = (directory / "metro.log").read_text(errors="replace")
-    if not logcat.strip() or not metro.strip():
-        raise RuntimeError("Missing native or Metro log evidence")
     try:
+        raw = (directory / "logcat.txt").read_bytes()
+        logcat = raw.decode(errors="replace")
+        metro = (directory / "metro.log").read_text(errors="replace")
+        capture = json.loads((directory / "logcat-capture.json").read_text())
+        if (capture.get("status") != "complete" or capture.get("errors") != []
+                or capture.get("file") != "logcat.txt" or capture.get("collectorExitCode") not in (0, 143)
+                or capture.get("buffers") != "all" or capture.get("filter") != "*:V"
+                or not isinstance(capture.get("collectorPid"), int) or capture["collectorPid"] <= 0
+                or capture.get("bytes") != len(raw) or capture.get("sha256") != hashlib.sha256(raw).hexdigest()):
+            raise RuntimeError("Native log capture is incomplete or its bytes do not match the verified collection")
+        begin, end = capture.get("beginMarker"), capture.get("endMarker")
+        if (not isinstance(begin, str) or not begin or not isinstance(end, str) or not end
+                or begin == end or logcat.count(begin) != 1 or logcat.count(end) != 1
+                or logcat.index(begin) >= logcat.index(end)):
+            raise RuntimeError("Native log evidence does not contain one complete ordered audit interval")
+        if not logcat.strip() or not metro.strip():
+            raise RuntimeError("Missing native or Metro log evidence")
         reject_log_errors(logcat, metro)
-    except RuntimeError as error:
+    except (RuntimeError, OSError, ValueError, TypeError, AttributeError) as error:
         result["status"] = "failed-log-gate"
         result["logGateError"] = str(error)
         result_path.write_text(json.dumps(result, indent=2))
-        raise
+        raise RuntimeError(str(error)) from error
     result["status"] = "passed"
     result["logGate"] = "passed: JS/linking/audio failures and app audio warnings rejected"
     result_path.write_text(json.dumps(result, indent=2))
@@ -756,6 +818,14 @@ def cold_reopen():
 
 
 def run_audit():
+    find("gym-home", True)
+    # Establish the repaired lifecycle proof first, before the long visual and
+    # provider matrix. This is the same real Start/HOME/resume gate, not a retry.
+    start_workout("gym-a")
+    audio_background_probe()
+    open_finish()
+    assert_enabled("save-finish", False)
+    tap("Descartar treino")
     find("gym-home", True)
     counterpart("01-home", "gym-home", anchor="provider-switch", text="Academia Horizonte")
     tap("home-volume", True, True)
@@ -1030,7 +1100,8 @@ def run_audit():
     shot("lifecycle-01-background-resume-keeps-history")
     tap("Início")
     start_workout("gym-a")
-    audio_background_probe()
+    tap("start-set", True, True)
+    assert_text("EXECUÇÃO")
     open_finish()
     assert_enabled("save-finish", False)
     tap("Descartar treino")

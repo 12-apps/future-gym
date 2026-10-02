@@ -14,6 +14,93 @@ test "$(git rev-parse HEAD:pnpm-lock.yaml)" = d67da91050333556feb29efd202060c39b
 test "$(git rev-parse HEAD:package.json)" = 8cabe285ed5dd4aa5a9857b01d242b1de56a0cc4
 test "$(git rev-parse HEAD:turbo.json)" = 97e7679ecd7862623b6016e0cf964e0e11b51945
 export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+# LOG_COLLECTION_FUNCTIONS_BEGIN
+wait_log_marker() {
+  local marker="$1"
+  for _ in $(seq 1 100); do
+    kill -0 "$LOGCAT_PID" 2>/dev/null || return 1
+    if grep -Fq "$marker" "$OUT/logcat.partial.txt"; then return 0; fi
+    sleep 0.1
+  done
+  return 1
+}
+stop_log_collector() {
+  local stopped=0
+  if kill -0 "$LOGCAT_PID" 2>/dev/null; then
+    kill -TERM "$LOGCAT_PID" 2>/dev/null || true
+    for _ in $(seq 1 50); do
+      if ! kill -0 "$LOGCAT_PID" 2>/dev/null; then stopped=1; break; fi
+      sleep 0.1
+    done
+    if test "$stopped" = 0; then kill -KILL "$LOGCAT_PID" 2>/dev/null || true; fi
+  fi
+  if wait "$LOGCAT_PID"; then LOGCAT_EXIT=0; else LOGCAT_EXIT=$?; fi
+  test "$LOGCAT_EXIT" = 0 || test "$LOGCAT_EXIT" = 143
+}
+start_log_collection() {
+  # Never truncate an earlier proof when a job directory is reused accidentally.
+  test ! -e "$OUT/logcat.txt" && test ! -e "$OUT/logcat.partial.txt" || return 1
+  LOGCAT_TOKEN=$(python3 -c 'import uuid; print(uuid.uuid4().hex)')
+  LOGCAT_BEGIN="GYM_AUDIT_BEGIN_$LOGCAT_TOKEN"
+  LOGCAT_END="GYM_AUDIT_END_$LOGCAT_TOKEN"
+  # Capture the actual adb child PID; no shell pipeline or timeout wrapper owns it.
+  adb logcat -b all -v threadtime '*:V' > "$OUT/logcat.partial.txt" 2> "$OUT/logcat-stderr.txt" &
+  LOGCAT_PID=$!
+  LOGCAT_STARTED=1
+  printf '{"status":"collecting","collectorPid":%s,"beginMarker":"%s","endMarker":"%s"}\n' \
+    "$LOGCAT_PID" "$LOGCAT_BEGIN" "$LOGCAT_END" > "$OUT/logcat-capture.json"
+  timeout 10 adb shell log -p i -t GYM_AUDIT "$LOGCAT_BEGIN" || return 1
+  wait_log_marker "$LOGCAT_BEGIN"
+}
+finish_log_collection() {
+  local failure=""
+  # Finalize once, including on audit failure; cleanup must never retry a write.
+  LOGCAT_FINALIZED=1
+  if ! kill -0 "$LOGCAT_PID" 2>/dev/null; then
+    failure="Collector exited before the audit end marker"
+  elif ! timeout 10 adb shell log -p i -t GYM_AUDIT "$LOGCAT_END"; then
+    failure="Could not emit the audit end marker"
+  elif ! wait_log_marker "$LOGCAT_END"; then
+    failure="Collector did not capture the audit end marker while alive"
+  fi
+  if ! stop_log_collector; then failure="Unexpected collector exit: $LOGCAT_EXIT; $failure"; fi
+  python3 - "$OUT" "$LOGCAT_BEGIN" "$LOGCAT_END" "$LOGCAT_PID" "$LOGCAT_EXIT" "$failure" <<'VERIFY_LOG_CAPTURE'
+import hashlib, json, sys
+from pathlib import Path
+directory = Path(sys.argv[1])
+begin, end, pid, exit_code, failure = sys.argv[2:]
+partial = directory / "logcat.partial.txt"
+data = partial.read_bytes() if partial.exists() else b""
+text = data.decode("utf-8", errors="replace")
+errors = [failure] if failure else []
+if text.count(begin) != 1 or text.count(end) != 1 or text.find(begin) >= text.find(end):
+    errors.append("Missing, repeated or out-of-order audit markers")
+if (directory / "logcat-stderr.txt").read_bytes():
+    errors.append("Collector stderr is not empty")
+if (directory / "logcat.txt").exists():
+    errors.append("Refusing to replace existing primary evidence")
+record = {"status": "failed" if errors else "complete", "file": "logcat.txt",
+          "beginMarker": begin, "endMarker": end, "collectorPid": int(pid),
+          "collectorExitCode": int(exit_code), "buffers": "all", "filter": "*:V",
+          "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "errors": errors}
+if not errors:
+    partial.replace(directory / "logcat.txt")
+(directory / "logcat-capture.json").write_text(json.dumps(record, indent=2))
+if errors:
+    result_path = directory / "result.json"
+    result = json.loads(result_path.read_text()) if result_path.exists() else {}
+    result.update(status="failed-log-collection", logCollectionErrors=errors)
+    result_path.write_text(json.dumps(result, indent=2))
+    raise SystemExit("Incomplete native log evidence: " + "; ".join(errors))
+VERIFY_LOG_CAPTURE
+}
+collect_cleanup_log_diagnostic() {
+  local diagnostic_exit=0
+  timeout 15 adb logcat -b all -d -v threadtime '*:V' > "$OUT/logcat-cleanup.txt" 2> "$OUT/logcat-cleanup-stderr.txt" || diagnostic_exit=$?
+  printf '{"status":"diagnostic-only","exitCode":%s,"complete":%s,"primaryLogUntouched":true}\n' \
+    "$diagnostic_exit" "$(test "$diagnostic_exit" = 0 && echo true || echo false)" > "$OUT/logcat-cleanup-status.json"
+}
+# LOG_COLLECTION_FUNCTIONS_END
 restore_font_scale_cleanup() {
   local actual
   if test "$ORIGINAL_FONT_SCALE" = null; then
@@ -27,6 +114,9 @@ restore_font_scale_cleanup() {
 }
 cleanup() {
   local exit_status=$?
+  if test -n "${LOGCAT_STARTED:-}" && test -z "${LOGCAT_FINALIZED:-}"; then
+    finish_log_collection || exit_status=1
+  fi
   # Always attempt the bounded font restore when its original value is known,
   # even if the driver or emulator disconnected. An unverified restore fails.
   if test -n "${ORIGINAL_FONT_SCALE:-}"; then
@@ -44,7 +134,7 @@ RESTORE_FAILURE
     fi
   fi
   if timeout 5 adb get-state >/dev/null 2>&1; then
-    timeout 15 adb logcat -d > "$OUT/logcat.txt" 2>&1 || true
+    collect_cleanup_log_diagnostic
     timeout 15 adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
     timeout 15 adb pull /sdcard/final.xml "$OUT/final.xml" > /dev/null 2>&1 || true
     timeout 15 adb exec-out screencap -p > "$OUT/final.png" 2>/dev/null || true
@@ -101,7 +191,7 @@ METRO_PID=$!
 export METRO_PID
 timeout 180 bash -c 'until curl --max-time 5 --fail --silent http://127.0.0.1:8081/status | grep -q packager-status:running; do kill -0 "$METRO_PID" || exit 1; sleep 2; done'
 adb reverse tcp:8081 tcp:8081
-adb logcat -c
+adb logcat -b all -c
 
 capture() {
   local name="$1"
@@ -135,10 +225,11 @@ javac --release 8 -d "$RUNNER_TEMP/gym-dump/classes" .ci/qa/GymDump.java
 "$D8" --output "$RUNNER_TEMP/gym-dump/dex" "$RUNNER_TEMP/gym-dump/classes/GymDump.class"
 (cd "$RUNNER_TEMP/gym-dump/dex" && zip -q ../gym-dump.jar classes.dex)
 adb push "$RUNNER_TEMP/gym-dump/gym-dump.jar" /data/local/tmp/gym-dump.jar
+start_log_collection
 launch
 wait_shell
 python3 .ci/qa/native-client-ui.py "$OUT"
-adb logcat -d > "$OUT/logcat.txt"
+finish_log_collection
 # The UI result is provisional until unfiltered native + Metro logs pass as well.
 python3 .ci/qa/native-client-ui.py --check-logs "$OUT"
 echo 'Native client runtime proof passed: 20 phone/wide counterpart captures; inline edits, validation/cancel, 1.3x font/restore, bounded footer/sheet, tenant histories, discard/restart, resume/cold reopen and real Android playback-service checks. Host audio remains disabled: audible output was not verified. No app applicationId assigned.'

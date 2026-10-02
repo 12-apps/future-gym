@@ -807,3 +807,34 @@ background/resume assertions. All 27 harness contracts pass, including delayed
 active playback, other-UID/history rejection, and fresh timeout diagnostics.
 Snapshots returned after the four-second deadline cannot satisfy acceptance.
 Native lifecycle, cold reopen and final log acceptance remain required.
+
+**Addendum (2026-10-02, short native activity and complete log capture):**
+Audit 37054870057 again completed all 20 counterparts and the functional matrix
+but failed its active-before-HOME requirement. Its 51 bounded audio snapshots
+contain a newly attributed player 135, UID 10209: started at 19:50:21.594,
+paused at 21.789 and released at 21.814. The 195ms active interval falls between
+the current-configuration snapshots; historical events cannot satisfy this
+lifecycle gate. Fresh UI confirms Execution. Controlled Android/iOS diagnostics
+reproduced two existing deadline/delayed-update protections that can shorten a
+cue, without establishing which ran on the device. No app source is changed.
+
+The observer now starts immediately before the single native input, samples
+without an extra polling sleep, and sends HOME itself on the first current
+UID-owned active sample. The strict deadline remains. UI diagnostics run only
+on the main thread after the observer terminates. The lifecycle sequence is
+first in the same complete audit so measurement failures surface promptly;
+real disabled-save/discard returns to a clean home before the full visual and
+provider matrix. The late Start/Execution/disabled-save/discard and cold-reopen
+checks remain. No app action is retried to manufacture a passing observation.
+
+The failed attempt's cleanup retained only 20,480 bytes of old logcat output,
+so it cannot attest the final runtime log interval. A continuous unfiltered
+all-buffer collector now brackets the audit with unique native log markers,
+records its actual PID/exit, and atomically promotes only a complete stream.
+The Python gate independently verifies its status, markers/order, byte count,
+SHA-256, collection settings and expected exit. Cleanup writes separate
+diagnostics and never overwrites the primary evidence. All 32 driver contracts
+and three real-shell collector contracts pass, including missing/end/reordered
+markers, early exit, stderr, truncation, retained errors and cleanup preservation.
+Independent review covered the observer races and collector. Native positive
+lifecycle and complete final log acceptance are still required.
