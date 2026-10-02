@@ -703,3 +703,21 @@ The SDK57 host supports dragging that floating control (`expo-dev-menu`
 in `FabState.kt`). The driver detects actual hierarchy overlap, captures it,
 uses that supported drag, and requires fresh nonoverlapping bounds before
 tapping sound. No application warning or host code is suppressed or patched.
+
+
+**Addendum (2026-10-02, supported host-control reachability):** Run
+36964248201 confirmed fresh launch after font configuration and successfully
+relocated Expo Tools away from sound. It then failed on the large-font plus
+button: the scrolled row moved underneath the relocated host control, while
+its exposed native target bounds still appeared valid. The last hierarchy
+places Tools at [335,481][361,507] and plus at [300,490][364,522]. Apply the
+same observed-container overlap check before every identified native target,
+not just sound, and retain the failed screenshot before teardown. No app
+warning or host code changes. The next audit also includes the independently
+reproduced inline/main-completion correction on its exact consumer bytes.
+
+The corrected audit matches consumer 95f96d358ccfb8513996fd03c72fc4b2bb00d87d
+(app tree 62d0475141e8b8fd9df72aaeb5512d4c0ce54f13). Added real main-button
+invalid load/repetition, valid focused completion, and finish-validation paths.
+The consumer independently passed 232 Android/iOS cases and lint/types. All
+18 harness contracts pass, including fail-before-cleanup screenshot ordering.

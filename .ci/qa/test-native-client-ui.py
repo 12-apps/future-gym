@@ -71,11 +71,11 @@ class NativeAuditContract(unittest.TestCase):
                 stack.enter_context(patch.object(audit, "shot"))
                 stack.enter_context(patch.object(audit.time, "sleep"))
                 if move:
-                    self.assertEqual(audit.ensure_sound_reachable().get("resource-id"), "toggle-sound")
+                    self.assertEqual(audit.ensure_control_reachable().get("resource-id"), "toggle-sound")
                     self.assertEqual(audit.host_checks[0]["after"], (322, 396, 374, 448))
                 else:
                     with self.assertRaisesRegex(RuntimeError, "still overlaps"):
-                        audit.ensure_sound_reachable()
+                        audit.ensure_control_reachable()
 
     def test_font_scale_restores_exact_value_and_absent_setting(self):
         for original in ["1.0", "null"]:
@@ -83,6 +83,10 @@ class NativeAuditContract(unittest.TestCase):
                 with self.subTest(original=original, fail_capture=fail_capture), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
                     state = {"font": original, "mutations": [], "running": True, "launches": [], "workouts": []}
                     def fake_adb(*args):
+                        if args == ("exec-out", "screencap", "-p"):
+                            self.assertTrue(state["running"], "Capture must precede cleanup")
+                            self.assertEqual(state["font"], "1.3")
+                            return b"native-failure-image"
                         if args == ("get-serialno",):
                             return b"emulator-5554\n"
                         if args[:2] == ("shell", "getprop"):

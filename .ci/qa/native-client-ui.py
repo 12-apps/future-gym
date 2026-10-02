@@ -114,12 +114,12 @@ def find(value, by_id=False, scroll=False):
     raise RuntimeError("Expected control not visible: " + value)
 
 
-def ensure_sound_reachable():
+def ensure_control_reachable(value="toggle-sound", by_id=True):
     """Move only Expo Go's supported draggable Tools host control when it overlaps."""
     nodes = observe()
-    target = next((n for n in nodes if matches(n, "toggle-sound", True) and visible(n)), None)
+    target = next((n for n in nodes if matches(n, value, by_id) and visible(n)), None)
     if target is None:
-        raise RuntimeError("Sound control must be visible before host-overlay check")
+        raise RuntimeError("Target control must be visible before host-overlay check")
     tools_node = next((n for n in nodes if matches(n, "Tools") and visible(n)), None)
     if tools_node is None:
         return target
@@ -153,16 +153,16 @@ def ensure_sound_reachable():
     time.sleep(0.5)
     fresh = observe()
     moved = next((n for n in fresh if matches(n, "Tools") and visible(n)), None)
-    target = next((n for n in fresh if matches(n, "toggle-sound", True) and visible(n)), None)
+    target = next((n for n in fresh if matches(n, value, by_id) and visible(n)), None)
     if moved is None or target is None:
-        raise RuntimeError("Host drag lost the Tools or sound control")
+        raise RuntimeError("Host drag lost the Tools or target control")
     ml, mt, mr, mb = bounds(moved)
     tl, tt, tr, tb = bounds(target)
     # Preserve the measured padding of the real host around its accessible icon.
     expanded = (ml - (il - hl), mt - (it - ht), mr + (hr - ir), mb + (hb - ib))
     el, et, er, eb = expanded
     if el < tr and er > tl and et < tb and eb > tt:
-        raise RuntimeError("Expo Tools still overlaps sound control after supported drag")
+        raise RuntimeError("Expo Tools still overlaps target control after supported drag")
     host_checks.append({"before": (hl, ht, hr, hb), "after": expanded, "target": bounds(target), "method": "supported Expo Go Tools drag"})
     (out / "host-tools-result.json").write_text(json.dumps(host_checks, indent=2))
     shot(f"host-tools-{index:02d}-after-drag")
@@ -170,8 +170,10 @@ def ensure_sound_reachable():
 
 
 def tap_node(node):
-    if matches(node, "toggle-sound", True):
-        node = ensure_sound_reachable()
+    identity = node.attrib.get("resource-id")
+    label = node.attrib.get("content-desc") or node.attrib.get("text")
+    if identity or label:
+        node = ensure_control_reachable(identity or label, bool(identity))
     if node.attrib.get("enabled") == "false":
         raise RuntimeError("Refusing to tap disabled control: " + node.attrib.get("resource-id", ""))
     left, top, right, bottom = bounds(node)
@@ -234,6 +236,17 @@ def shot(name):
     print("Captured", name, flush=True)
 
 
+def capture_failure(label):
+    # This must run before process/font cleanup can replace the failed screen.
+    try:
+        (out / (label + "-screen.png")).write_bytes(adb("exec-out", "screencap", "-p"))
+        current = out / "current-client.xml"
+        if current.exists():
+            (out / (label + "-last-observation.xml")).write_bytes(current.read_bytes())
+    except Exception as capture_error:
+        print("Failure-screen capture unavailable:", capture_error, flush=True)
+
+
 def fill(identity, value, hide=True):
     node = find(identity, True, True)
     tap_node(node)
@@ -262,7 +275,7 @@ def top(anchor):
         nodes = observe()
         if any(matches(n, anchor, True) and visible(n) and bounds(n)[3] - bounds(n)[1] >= 32 for n in nodes):
             if anchor == "toggle-sound":
-                ensure_sound_reachable()
+                ensure_control_reachable()
             return
         viewport_scroll(nodes, "up")
     raise RuntimeError("Screen header cannot be restored: " + anchor)
@@ -405,6 +418,7 @@ def large_font_ready_audit():
         assert_set(0, False, "40", "10")
         record["status"] = "passed"
     except Exception as error:
+        capture_failure("large-font-failure")
         record["status"] = "failed"
         record["error"] = str(error)
         raise
@@ -667,6 +681,44 @@ def run_audit():
     tap("Cancelar", scroll=True)
     assert_set(0, False, "40", "10")
 
+    # Main completion must validate the active row just like its checkbox,
+    # including native focused drafts whose blur has not committed yet.
+    top("toggle-sound")
+    tap("start-set", True, True)
+    fill("inline-load-0", "40kg")
+    tap("complete-set", True, True)
+    find(INVALID_SET, scroll=True)
+    assert_set(0, False)
+    shot("validation-07-main-completion-invalid-load")
+    tap("Cancelar", scroll=True)
+    assert_set(0, False, "40", "10")
+    fill("inline-reps-0", "0")
+    tap("complete-set", True, True)
+    find(INVALID_SET, scroll=True)
+    assert_set(0, False)
+    shot("validation-08-main-completion-invalid-reps")
+    tap("Cancelar", scroll=True)
+    fill("inline-load-0", "42,5")
+    fill("inline-reps-0", "9")
+    tap("complete-set", True, True)
+    assert_set(0, True, "42,5", "9")
+    shot("validation-09-main-completion-valid-draft")
+    fill("inline-load-0", "40kg")
+    tap("finish-workout", True, True)
+    assert_absent("Encerrar treino?")
+    find(INVALID_SET, scroll=True)
+    assert_set(0, True)
+    shot("validation-10-finish-blocks-invalid-completed-draft")
+    tap("Cancelar", scroll=True)
+    # Restore the original model through the same real row controls for the
+    # remaining reference sequence; no runtime state injection is used.
+    tap("toggle-set-0", True, True)
+    fill("inline-load-0", "40")
+    fill("inline-reps-0", "10")
+    tap("toggle-set-0", True, True)
+    tap("toggle-set-0", True, True)
+    assert_set(0, False, "40", "10")
+
     # Routed editor still has its own validation, keyboard-safe Save, Cancel and native Back.
     tap("edit-set-0", True, True)
     find("set-editor", True)
@@ -897,6 +949,7 @@ if __name__ == "__main__":
         try:
             run_audit()
         except Exception as error:
+            capture_failure("failure")
             failure = {"status": "failed", "error": str(error), "captured_states": shots, "counterparts": paired, "fontChecks": font_checks, "audioChecks": audio_checks, "hostChecks": host_checks}
             (out / "failure.json").write_text(json.dumps(failure, indent=2))
             (out / "result.json").write_text(json.dumps(failure, indent=2))

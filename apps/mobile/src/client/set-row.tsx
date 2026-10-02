@@ -7,12 +7,15 @@ import { Card } from "@12-apps/ui/layout/Card";
 import { Stack } from "@12-apps/ui/layout/Stack";
 import { useUiTheme } from "@12-apps/ui/provider";
 import { Text } from "@12-apps/ui/typography/Text";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { CLIENT_COPY, formatInputNumber } from "./copy";
 import { parseSetInput, type SetLog } from "./model";
 
+export type SetRowHandle = { commit: () => boolean };
+
 /** Inline prototype controls keep invalid drafts out of the session model. */
-export function SetRow({ set, index, target, active, onSave, onToggle, onEdit }: {
+export function SetRow({ ref, set, index, target, active, onSave, onToggle, onEdit }: {
+  ref?: Ref<SetRowHandle>;
   set: SetLog; index: number; target: number; active: boolean;
   onSave: (values: { kg: number; repetitions: number }) => void;
   onToggle: () => void; onEdit: () => void;
@@ -29,6 +32,7 @@ export function SetRow({ set, index, target, active, onSave, onToggle, onEdit }:
     if (!parsed) { setInvalid(true); return false; }
     setInvalid(false); onSave(parsed); return true;
   };
+  useImperativeHandle(ref, () => ({ commit }));
   const focus = () => { focused.current = true; ignoreNextBlur.current = false; };
   const blur = () => {
     focused.current = false;

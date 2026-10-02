@@ -10,13 +10,13 @@ import { Stack } from "@12-apps/ui/layout/Stack";
 import { useUiTheme } from "@12-apps/ui/provider";
 import { Heading } from "@12-apps/ui/typography/Heading";
 import { Text } from "@12-apps/ui/typography/Text";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CLIENT_COPY, formatClock } from "./copy";
 import { useClient } from "./context";
 import { useSingleNavigation } from "./navigation";
 import { Muted, Page, SectionTitle } from "./components";
 import { useWorkoutAudio } from "./workout-audio";
-import { SetRow } from "./set-row";
+import { SetRow, type SetRowHandle } from "./set-row";
 import { commandForTenant, finishSession, remainingMilliseconds, summarizeSession, trainingForMember, type SessionCommand } from "./model";
 
 export function SessionScreen() {
@@ -27,6 +27,7 @@ export function SessionScreen() {
   const sessionId = session?.id;
   const [now, setNow] = useState(Date.now);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const rowDrafts = useRef(new Map<number, SetRowHandle>());
   const playback = useWorkoutAudio(session, now, soundEnabled);
   useEffect(() => {
     if (!sessionId) return;
@@ -44,17 +45,26 @@ export function SessionScreen() {
   const caption = session.phase === "ready" ? `${exercise.sets} ${copy.sets} ${copy.of} ${exercise.repetitions}` : session.phase === "exercise-complete" ? `${copy.completedSets}: ${logs.filter((set) => set.completed).length}` : `${session.phase === "rest" ? copy.nextSet : copy.set} ${session.setIndex + 1} ${copy.of} ${exercise.sets}`;
   const summary = summarizeSession(session, now);
   const command = (action: SessionCommand) => setState((current) => commandForTenant(current, tenantId, session.id, action));
+  const completeCurrentSet = () => {
+    // Native button presses can arrive before an input blur. Commit the actual
+    // visible draft before recording its set, and keep invalid drafts editable.
+    if (rowDrafts.current.get(session.setIndex)?.commit()) command({ type: "complete-set", now: Date.now() });
+  };
+  const requestFinish = () => {
+    const valid = logs.map((_, index) => rowDrafts.current.get(index)?.commit() ?? false).every(Boolean);
+    if (valid) setConfirmEnd(true);
+  };
   const finish = (discard = false) => router.run((currentRouter) => {
     setState((current) => finishSession(current, tenantId, session.id, Date.now(), discard)); setConfirmEnd(false);
     currentRouter.replace(discard ? "/" : { pathname: "/summary/[id]", params: { id: session.id } });
   });
   const navigation = <Stack gap={1}><Stack direction="row" gap={1}>
     {session.exerciseIndex > 0 ? <Button variant="outline" onPress={() => command({ type: "exercise", index: session.exerciseIndex - 1 })} accessibilityLabel={copy.previousExercise} icon={<Icon name="ArrowBack" />} /> : null}
-    <Box flex={1}>{session.exerciseIndex < session.workout.exercises.length - 1 ? <Button style={{ width: "100%" }} onPress={() => command({ type: "exercise", index: session.exerciseIndex + 1 })} dataTestId="next-exercise">{copy.nextExercise}</Button> : <Button style={{ width: "100%" }} onPress={() => setConfirmEnd(true)} dataTestId="finish-last-exercise">{copy.finish}</Button>}</Box>
+    <Box flex={1}>{session.exerciseIndex < session.workout.exercises.length - 1 ? <Button style={{ width: "100%" }} onPress={() => command({ type: "exercise", index: session.exerciseIndex + 1 })} dataTestId="next-exercise">{copy.nextExercise}</Button> : <Button style={{ width: "100%" }} onPress={requestFinish} dataTestId="finish-last-exercise">{copy.finish}</Button>}</Box>
   </Stack><Button variant="text" size="sm" onPress={() => router.replace("/")} accessibilityLabel={copy.goHome}>{copy.goHome}</Button></Stack>;
   return <Page testID="gym-session" footer={navigation}>
     <Stack direction="row" gap={1} align="center" justify="between">
-      <Button variant="outline" color="neutral" onPress={() => setConfirmEnd(true)} accessibilityLabel={copy.endSession} icon={<Icon name="Close" />} dataTestId="finish-workout" />
+      <Button variant="outline" color="neutral" onPress={requestFinish} accessibilityLabel={copy.endSession} icon={<Icon name="Close" />} dataTestId="finish-workout" />
       <Stack flex={1} gap={0.5}><Text weight="semibold">{copy.workout} {session.workout.letter} · {session.workout.name}</Text><Muted>{copy.total} {formatClock(now - session.startedAt)}</Muted></Stack>
       <Button variant="outline" color="neutral" onPress={() => setSoundEnabled((enabled) => !enabled)} accessibilityLabel={soundEnabled ? copy.soundOff : copy.soundOn} icon={<Icon name={soundEnabled ? "VolumeUp" : "VolumeOff"} />} dataTestId="toggle-sound" />
     </Stack>
@@ -69,12 +79,12 @@ export function SessionScreen() {
       {session.phase === "ready" ? <Button size="lg" color="neutral" style={{ width: "100%" }} onPress={() => command({ type: "start-set", now: Date.now() })} dataTestId="start-set">{copy.startSet}</Button> : null}
       {session.phase === "execution" || session.phase === "rest" ? <Stack direction="row" gap={1} width="100%">
         <Button variant="outline" color="neutral" onPress={() => command({ type: "toggle-pause", now: Date.now() })} dataTestId="pause-timer">{session.paused ? copy.continueTimer : copy.pause}</Button>
-        {session.phase === "execution" ? <Box flex={1}><Button style={{ width: "100%" }} color="danger" onPress={() => command({ type: "complete-set", now: Date.now() })} dataTestId="complete-set">{copy.completeSet}</Button></Box> : <><Button variant="outline" onPress={() => command({ type: "extend-rest", milliseconds: 15000 })} accessibilityLabel={copy.moreRest} dataTestId="extend-rest">+15s</Button><Box flex={1}><Button style={{ width: "100%" }} color="success" onPress={() => command({ type: "skip-rest" })} dataTestId="skip-rest">{copy.skipRest}</Button></Box></>}
+        {session.phase === "execution" ? <Box flex={1}><Button style={{ width: "100%" }} color="danger" onPress={completeCurrentSet} dataTestId="complete-set">{copy.completeSet}</Button></Box> : <><Button variant="outline" onPress={() => command({ type: "extend-rest", milliseconds: 15000 })} accessibilityLabel={copy.moreRest} dataTestId="extend-rest">+15s</Button><Box flex={1}><Button style={{ width: "100%" }} color="success" onPress={() => command({ type: "skip-rest" })} dataTestId="skip-rest">{copy.skipRest}</Button></Box></>}
       </Stack> : null}
       {playback.error ? <Text color="danger" size="sm" accessibilityRole="alert">{copy.audioUnavailable}</Text> : null}
     </Stack>
     <Muted>{copy.timerHint}</Muted>
-    <Stack gap={1.5}><SectionTitle>{copy.loads}</SectionTitle><Card variant="outlined" borderRadius="lg"><Stack gap={0}>{logs.map((set, index) => <SetRow key={`${session.id}:${exercise.id}:${index}`} set={set} index={index} target={exercise.repetitions} active={session.setIndex === index && !set.completed}
+    <Stack gap={1.5}><SectionTitle>{copy.loads}</SectionTitle><Card variant="outlined" borderRadius="lg"><Stack gap={0}>{logs.map((set, index) => <SetRow key={`${session.id}:${exercise.id}:${index}`} ref={(handle) => { if (handle) rowDrafts.current.set(index, handle); else rowDrafts.current.delete(index); }} set={set} index={index} target={exercise.repetitions} active={session.setIndex === index && !set.completed}
       onSave={(values) => command({ type: "set-log", exerciseId: exercise.id, setIndex: index, ...values })}
       onToggle={() => command({ type: "toggle-set", exerciseId: exercise.id, setIndex: index })}
       onEdit={() => router.push({ pathname: "/set/[exerciseId]/[setIndex]", params: { exerciseId: exercise.id, setIndex: String(index), sessionId: session.id } })} />)}</Stack></Card></Stack>
