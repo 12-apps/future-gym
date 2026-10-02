@@ -294,3 +294,36 @@ the complete 238-case mobile suite pass (22 suites, zero skipped); lint and
 types also pass. These controlled native-registry mocks verify causality and
 cleanup failures, not device behavior. The fresh native run must still prove
 that the actual foreground warning is gone.
+
+## Short-cue status delivery correction (2026-10-02)
+
+Consumer `1522b78` passed exact CI37061921035 with 238 Android/iOS renderer
+cases and 46 root contracts. Native audit37065484095 reached 24 captured
+states, passed the initial active foreground/background/resume probe and
+fresh-launch 1.3x font checks, then refused a visible sound-unavailable alert.
+The first 100 ms countdown cue's native PLAYING observation arrived 763 ms
+after player initialization, while the hook's bounded lifetime was 600 ms.
+The failure image still showed an uncompleted series; it does not establish
+that the completion action caused the alert. The previous released-player
+foreground warning did not recur in the complete retained log.
+
+The hook previously treated a missing JavaScript playing event as proof the
+cue never started. Independent renderer reproduction verifies that a native
+player can already be playing or finished while that event is delayed. At the
+existing deadline, cleanup now checks the public native playing/currentTime
+properties before reporting non-start. Fresh players never seek, so a finite
+positive position proves progress. Zero/invalid progress, property-read
+failures and explicit native playback errors still surface. The cue lifetime,
+delayed-start cutoff, cancellation and unregistration remain unchanged.
+
+The independent causal fixture failed six executions before the correction;
+all 60 focused audio executions now pass. The complete local mobile suite
+passes 254 cases in 22 suites with zero skips, with lint and types also green.
+These tests model native progress independently from callback delivery; they
+do not replace the pending full real-runtime proof.
+
+The private virtual audio route was observed throughout that failed run, but
+623 Ranchu PCM write failures remain in its guest log; a connected host stream
+does not establish successful PCM delivery or audible output. Font, audio and
+display servers and temporary KVM permissions were restored. Exact-source CI,
+the complete fresh native run and independent final acceptance remain open.
