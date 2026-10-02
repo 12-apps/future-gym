@@ -784,3 +784,26 @@ types passed locally. Exact app tree e2b1a08c13ce20d1e630210bf87ab568d5ebb44f is
 required by this audit. Fresh normal/1.3x pixels, all 20 paired states, both
 personal histories and lifecycle checks remain required. The owner explicitly
 resumed the repair; no previous machine pass substitutes for those gates.
+
+**Addendum (2026-10-02, bounded foreground lifecycle observation):** Audit
+37051319858 used consumer e0f903fb448959ccdcff2d6452f357b9c5b17fe8 exactly.
+All 20 native/reference counterparts, 50 states, validation, summary/history,
+both personal histories, large-font restoration and History background/resume
+completed. All five reached UID-attributed playback probes passed. Independent
+pixel review closed the series/target legibility issue at both font sizes.
+
+The late active-session lifecycle probe failed after a single audio snapshot
+following a fixed 0.3s tap delay. The failure screenshot still showed Ready;
+the later final screenshot shows Execution (0:28), proving Start was accepted
+after the early capture. The retained hierarchy was pre-tap. This is evidence
+of an inadequate observation window, not proof that the cue later played or
+that an application audio regression exists. The new probe requires a silent
+UID-owned baseline, issues exactly one Start tap without fixed settling delay,
+and samples current UID-owned state:started for at most four seconds. On a
+positive sample, HOME is issued before writing evidence files. On timeout,
+fresh UI/XML and all sampled audio evidence are retained and acceptance fails.
+No retry of an app action, historical-event substitute, app edits, or weakened
+background/resume assertions. All 27 harness contracts pass, including delayed
+active playback, other-UID/history rejection, and fresh timeout diagnostics.
+Snapshots returned after the four-second deadline cannot satisfy acceptance.
+Native lifecycle, cold reopen and final log acceptance remain required.

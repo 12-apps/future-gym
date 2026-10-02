@@ -175,7 +175,7 @@ def ensure_control_reachable(value="toggle-sound", by_id=True, *, label=None, no
     return target
 
 
-def tap_node(node):
+def tap_node(node, *, settle=0.3):
     identity = node.attrib.get("resource-id")
     label = node.attrib.get("content-desc") or node.attrib.get("text")
     if identity or label:
@@ -188,7 +188,7 @@ def tap_node(node):
         raise RuntimeError("Refusing to tap disabled control: " + node.attrib.get("resource-id", ""))
     left, top, right, bottom = bounds(node)
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
-    time.sleep(0.3)
+    time.sleep(settle)
 
 
 def tap(value, by_id=False, scroll=False):
@@ -516,20 +516,57 @@ def active_owned_playback(text, uid):
     return {line for line in playback_started_lines(text, uid) if re.search(r"\bstate:\s*started\b", line)}
 
 
+def record_lifecycle_foreground(active, snapshots, elapsed, timeout):
+    (out / "audio-lifecycle-foreground.txt").write_text("\n--- SNAPSHOT ---\n".join(snapshots))
+    (out / "audio-lifecycle-observation.json").write_text(json.dumps({
+        "samples": len(snapshots), "waitSeconds": elapsed, "timeoutSeconds": timeout,
+        "activeForegroundPlayers": sorted(active), "actionCount": 1,
+    }, indent=2))
+
+
+def wait_for_active_cue(uid, timeout=4):
+    """Bounded native observation after one tap; never repeat an app action."""
+    started = time.monotonic()
+    snapshots = []
+    active = set()
+    while time.monotonic() - started < timeout:
+        snapshot = adb("shell", "dumpsys", "audio").decode(errors="replace")
+        snapshots.append(snapshot)
+        if time.monotonic() - started >= timeout:
+            break  # A slow dumpsys must not extend the acceptance deadline.
+        active = active_owned_playback(snapshot, uid)
+        if active:
+            break
+        time.sleep(0.05)
+    elapsed = time.monotonic() - started
+    if not active:
+        record_lifecycle_foreground(active, snapshots, elapsed, timeout)
+        # The old retained hierarchy was pre-tap and could misdiagnose delayed UI.
+        fresh = observe()
+        (out / "audio-lifecycle-post-action.xml").write_bytes((out / "current-client.xml").read_bytes())
+        shot("audio-lifecycle-no-active-cue")
+        phase = "execution" if "EXECUÇÃO" in visible_text(fresh) else "execution not observed"
+        raise RuntimeError(f"Lifecycle probe did not observe active foreground playback within {timeout}s ({phase})")
+    return active, snapshots, elapsed
+
+
 def audio_background_probe():
     """Observe a real foreground cue, native background stop and silent resume."""
     top("toggle-sound")
     assert_text("Desligar som")
     node = find("start-set", True, True)
     uid = package_uid()
-    tap_node(node)
-    playing = adb("shell", "dumpsys", "audio").decode(errors="replace")
-    (out / "audio-lifecycle-foreground.txt").write_text(playing)
-    active = active_owned_playback(playing, uid)
-    if not active:
-        raise RuntimeError("Lifecycle probe did not observe the foreground cue actively playing")
+    baseline = adb("shell", "dumpsys", "audio").decode(errors="replace")
+    (out / "audio-lifecycle-before-tap.txt").write_text(baseline)
+    if active_owned_playback(baseline, uid):
+        raise RuntimeError("Lifecycle probe requires a silent baseline before its single Start tap")
+    # No fixed settling sleep: an early single dump can precede React's update,
+    # while a longer fixed sleep can miss the short real cue altogether.
+    tap_node(node, settle=0)
+    active, foreground_snapshots, foreground_delay = wait_for_active_cue(uid)
     adb("shell", "input", "keyevent", "KEYCODE_HOME")
     background_at = time.monotonic()
+    record_lifecycle_foreground(active, foreground_snapshots, foreground_delay, 4)
     stopped_after = None
     traces = []
     for _ in range(20):

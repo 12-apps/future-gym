@@ -238,6 +238,59 @@ class NativeAuditContract(unittest.TestCase):
         next_data = data + "new player piid:12 uid/pid:10081/1234\n21:00:01 player piid:12 event:started\n"
         self.assertEqual(len(audit.playback_started_lines(next_data, 10081) - before), 1)
 
+    def test_lifecycle_waits_for_delayed_current_owned_playback(self):
+        history = MONITOR + "new player piid:9 uid/pid:10081/1234\nplayer piid:9 event:started\n"
+        other_app = MONITOR + "Player piid:10 u/pid:10082/1235 state:started\n"
+        current = MONITOR + "Player piid:11 u/pid:10081/1234 state:started\n"
+        with tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
+            stack.enter_context(patch.object(audit, "out", Path(folder)))
+            adb = stack.enter_context(patch.object(audit, "adb", side_effect=[x.encode() for x in [MONITOR, history, other_app, current]]))
+            stack.enter_context(patch.object(audit.time, "sleep"))
+            active, snapshots, elapsed = audit.wait_for_active_cue(10081)
+            self.assertEqual(active, {current.splitlines()[1]})
+            self.assertEqual(adb.call_count, 4)
+            self.assertTrue(all(call.args == ("shell", "dumpsys", "audio") for call in adb.call_args_list))
+            self.assertEqual(len(snapshots), 4)
+            self.assertGreaterEqual(elapsed, 0)
+            self.assertFalse((Path(folder) / "audio-lifecycle-observation.json").exists(), "No file IO may delay HOME after active playback is observed")
+
+    def test_lifecycle_timeout_keeps_fresh_state_and_never_repeats_action(self):
+        for phase in ["PRONTO", "EXECUÇÃO"]:
+            with self.subTest(phase=phase), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
+                directory = Path(folder)
+                tree = ET.fromstring(f'<hierarchy><node text="{phase}" bounds="[0,0][390,80]"/></hierarchy>')
+                def fresh():
+                    ET.ElementTree(tree).write(directory / "current-client.xml")
+                    return list(tree.iter("node"))
+                stack.enter_context(patch.object(audit, "out", directory))
+                adb = stack.enter_context(patch.object(audit, "adb", return_value=MONITOR.encode()))
+                stack.enter_context(patch.object(audit.time, "monotonic", side_effect=[0, 0, 0.05, 4.1, 4.1]))
+                stack.enter_context(patch.object(audit.time, "sleep"))
+                observed = stack.enter_context(patch.object(audit, "observe", side_effect=fresh))
+                shot = stack.enter_context(patch.object(audit, "shot"))
+                with self.assertRaisesRegex(RuntimeError, "execution not observed" if phase == "PRONTO" else r"\(execution\)"):
+                    audit.wait_for_active_cue(10081)
+                observed.assert_called_once()
+                shot.assert_called_once_with("audio-lifecycle-no-active-cue")
+                self.assertEqual(ET.parse(directory / "audio-lifecycle-post-action.xml").getroot()[0].get("text"), phase)
+                self.assertTrue(all(call.args == ("shell", "dumpsys", "audio") for call in adb.call_args_list))
+
+    def test_lifecycle_rejects_active_snapshot_returned_after_deadline(self):
+        current = MONITOR + "Player piid:11 u/pid:10081/1234 state:started\n"
+        with tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
+            directory = Path(folder)
+            (directory / "current-client.xml").write_text('<hierarchy/>')
+            stack.enter_context(patch.object(audit, "out", directory))
+            stack.enter_context(patch.object(audit, "adb", return_value=current.encode()))
+            stack.enter_context(patch.object(audit.time, "monotonic", side_effect=[0, 0, 4.1, 4.1]))
+            stack.enter_context(patch.object(audit, "observe", return_value=[]))
+            stack.enter_context(patch.object(audit, "shot"))
+            with self.assertRaisesRegex(RuntimeError, "within 4s"):
+                audit.wait_for_active_cue(10081)
+            self.assertIn("state:started", (directory / "audio-lifecycle-foreground.txt").read_text())
+            record = json.loads((directory / "audio-lifecycle-observation.json").read_text())
+            self.assertEqual(record["activeForegroundPlayers"], [])
+
     def test_audio_service_unavailable_fails_closed(self):
         with self.assertRaisesRegex(RuntimeError, "not available"):
             audit.playback_started_lines("Permission Denial", 10081)
