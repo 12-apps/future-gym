@@ -486,6 +486,66 @@ def playback_started_lines(text, uid):
     return started
 
 
+def active_owned_playback(text, uid):
+    return {line for line in playback_started_lines(text, uid) if re.search(r"\bstate:\s*started\b", line)}
+
+
+def audio_background_probe():
+    """Observe a real foreground cue, native background stop and silent resume."""
+    top("toggle-sound")
+    assert_text("Desligar som")
+    node = find("start-set", True, True)
+    package = adb("shell", "dumpsys", "package", PACKAGE).decode()
+    match = re.search(r"\buserId=(\d+)", package)
+    if not match:
+        raise RuntimeError("Missing Expo UID for lifecycle audio attribution")
+    uid = int(match.group(1))
+    tap_node(node)
+    playing = adb("shell", "dumpsys", "audio").decode(errors="replace")
+    (out / "audio-lifecycle-foreground.txt").write_text(playing)
+    active = active_owned_playback(playing, uid)
+    if not active:
+        raise RuntimeError("Lifecycle probe did not observe the foreground cue actively playing")
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    background_at = time.monotonic()
+    stopped_after = None
+    traces = []
+    for _ in range(20):
+        snapshot = adb("shell", "dumpsys", "audio").decode(errors="replace")
+        traces.append(snapshot)
+        if not active_owned_playback(snapshot, uid):
+            stopped_after = time.monotonic() - background_at
+            break
+        time.sleep(0.05)
+    (out / "audio-lifecycle-background.txt").write_text("\n--- SNAPSHOT ---\n".join(traces))
+    if stopped_after is None:
+        raise RuntimeError("App playback remained active after backgrounding")
+    time.sleep(1.2)
+    before_resume = adb("shell", "dumpsys", "audio").decode(errors="replace")
+    (out / "audio-lifecycle-before-resume.txt").write_text(before_resume)
+    if active_owned_playback(before_resume, uid):
+        raise RuntimeError("App started playback while backgrounded")
+    before = playback_started_lines(before_resume, uid)
+    adb("shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", "exp://127.0.0.1:8081", "-p", PACKAGE)
+    resumed = []
+    for _ in range(12):
+        snapshot = adb("shell", "dumpsys", "audio").decode(errors="replace")
+        resumed.append(snapshot)
+        if playback_started_lines(snapshot, uid) - before:
+            raise RuntimeError("Resuming the app replayed a workout cue")
+        time.sleep(0.15)
+    (out / "audio-lifecycle-resume.txt").write_text("\n--- SNAPSHOT ---\n".join(resumed))
+    find("gym-session", True)
+    assert_set(0, False)
+    top("toggle-sound")
+    assert_text("EXECUÇÃO")
+    shot("lifecycle-04-active-session-resume-no-completion")
+    audio_checks.append({"name": "foreground-background-resume", "uid": uid,
+                         "activeForegroundPlayers": sorted(active), "inactiveAfterHomeSeconds": stopped_after,
+                         "newPlaybackOnResume": False, "audibleOutputVerified": False})
+    (out / "audio-result.json").write_text(json.dumps(audio_checks, indent=2))
+
+
 def audio_probe(name, control, expect_started):
     # Resolve fresh control first so accessibility observation latency cannot miss a short cue.
     node = find(control, True, True)
@@ -913,6 +973,13 @@ def run_audit():
     find("gym-history", True)
     assert_text("382,5 kg")
     shot("lifecycle-01-background-resume-keeps-history")
+    tap("Início")
+    start_workout("gym-a")
+    audio_background_probe()
+    open_finish()
+    assert_enabled("save-finish", False)
+    tap("Descartar treino")
+    find("gym-home", True)
     cold_reopen()
     assert_text("Academia Horizonte")
     tap("Histórico")

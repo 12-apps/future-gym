@@ -162,6 +162,14 @@ class NativeAuditContract(unittest.TestCase):
         self.assertEqual(len(audit.playback_started_lines(data, 10081)), 1)
         self.assertEqual(audit.playback_started_lines(data.replace("state:started", "state:paused"), 10081), set())
 
+    def test_active_playback_excludes_history_and_other_apps(self):
+        history = MONITOR + "new player piid:9 uid/pid:10081/1234\nplayer piid:9 event:started\n"
+        self.assertEqual(audit.active_owned_playback(history, 10081), set())
+        current = history + "Player piid:10 u/pid:10081/1234 state:started\n"
+        self.assertEqual(len(audit.active_owned_playback(current, 10081)), 1)
+        self.assertEqual(audit.active_owned_playback(current, 10082), set())
+        self.assertEqual(audit.active_owned_playback(current.replace("state:started", "state:paused"), 10081), set())
+
     def test_stale_events_do_not_count_as_new_playback(self):
         data = MONITOR + "new player piid:9 uid/pid:10081/1234\n21:00:00 player piid:9 event:started\n"
         before = audit.playback_started_lines(data, 10081)

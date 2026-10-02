@@ -721,3 +721,14 @@ The corrected audit matches consumer 95f96d358ccfb8513996fd03c72fc4b2bb00d87d
 invalid load/repetition, valid focused completion, and finish-validation paths.
 The consumer independently passed 232 Android/iOS cases and lint/types. All
 18 harness contracts pass, including fail-before-cleanup screenshot ordering.
+
+**Addendum (2026-10-02, active audio lifecycle):** The previous lifecycle path
+backgrounded History and could not establish audio interruption. Add a separate
+real session path that observes current (not historical) UID-owned playback,
+backgrounds the app, requires playback to become inactive, and checks that
+foreground return creates no new playback event and no completed set. Save the
+service snapshots and measured inactive delay; headless output still does not
+prove heard sound. A contract rejects historical events and other-app players
+as active playback. All 19 local harness contracts pass. Consumer bytes remain
+exactly 95f96d3 and its remote CI36964854360 is green; native execution remains
+required for the newly added lifecycle path.
