@@ -838,3 +838,52 @@ and three real-shell collector contracts pass, including missing/end/reordered
 markers, early exit, stderr, truncation, retained errors and cleanup preservation.
 Independent review covered the observer races and collector. Native positive
 lifecycle and complete final log acceptance are still required.
+
+**Addendum (2026-10-02, await the late Start render):** Audit 37058465803
+completed all 20 counterparts and 53 captured states. All six audio probes
+passed, including current UID-owned active playback before HOME, inactive
+playback after HOME, and no new playback or set completion on resume. Its
+continuous unfiltered log capture retained 41,084,760 bytes with matching
+markers and hash; font and runner KVM cleanup passed. Full log acceptance was
+not reached because the late immediate Execution assertion failed.
+
+The failure image shows Ready 0:40; the later final image shows Execution 0:27
+after the same single Start input. Await the exact visible Execution phase with
+the driver's existing bounded observation loop before opening Finish. No
+action retry, application modification, audio-deadline relaxation or accepted
+failure is introduced. Disabled-save/discard, cold reopen and the complete
+final log gate remain mandatory in the next complete native audit.
+
+Independent read-only log inspection then found a real application audio
+cleanup defect in that same audit: Expo's foreground handler tried to resume
+a player whose shared playback resources had been released but whose native
+lifecycle registry entry remained. Consumer cleanup must call the public
+player.remove() API before release(); no log rejection is relaxed. The old
+code fails the controlled lifecycle-registry reproduction on both Android/iOS
+renderers. A separate AudioTrack timestamp warning coincides with the headless
+emulator's failing PCM output and requires a valid disposable host backend.
+The six positive service probes are not a substitute for clean runtime logs.
+
+Consumer 1522b781fa2a1ca452f62a15c0e2eab3f29e99e6 supplies the minimal
+remove-before-release correction and six causal regression executions. Its
+exact CI37061921035 passed 238 actual Android/iOS cases (22 suites, zero skipped,
+fresh cache miss), 46 root contracts, lint, types and build. This audit requires
+its exact mobile tree519547a5ba4e97b8a0b01ae1f96cb59a903cfc43; dependency/root
+configuration bytes remain unchanged.
+
+The separate host experiment replaces disabled host audio with the official
+emulator's PulseAudio backend feeding a private null sink. Only the disposable
+runner receives tooling; no physical microphone, device discovery or network
+listener is enabled. The emulator's own help/version, actual PulseAudio client
+and playback route, process cleanup and private directory removal are recorded.
+Guest audio input is disabled. This supplies a valid output path for testing
+the observed Ranchu PCM failures; it is not yet evidence that the timestamp
+warning is fixed. Native warnings still fail the same log gate, and virtual
+output never establishes that a person heard a cue.
+
+All 32 driver, three complete-log-collector and three private-host-audio
+contracts pass. Host fixtures cover lazy connection before playback, refusal
+without a playback observation, and complete server/private-file cleanup after
+recording/route failures. These fixtures do not establish emulator support:
+the actual runner preflight must retain its installed binary help/version,
+connection and stream evidence before the native proof can be accepted.

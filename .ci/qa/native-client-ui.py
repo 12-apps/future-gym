@@ -691,7 +691,7 @@ def audio_probe(name, control, expect_started):
         newly_started.update(playback_started_lines(snapshot, uid) - before)
     result = {"name": name, "uid": uid, "expectedStarted": expect_started,
               "observedStarted": bool(newly_started), "evidence": sorted(newly_started),
-              "samples": len(snapshots), "proof": "Android playback-service activity; host audio disabled, no audible proof"}
+              "samples": len(snapshots), "proof": "Android playback-service activity with virtual host output; no audible proof"}
     audio_checks.append(result)
     (out / "audio-result.json").write_text(json.dumps(audio_checks, indent=2))
     observe()  # Reject the real app's visible playback/configuration/cleanup failure immediately.
@@ -1101,7 +1101,9 @@ def run_audit():
     tap("Início")
     start_workout("gym-a")
     tap("start-set", True, True)
-    assert_text("EXECUÇÃO")
+    # Require the asynchronous transition after this single input. A fixed tap
+    # settle delay is not evidence that React has rendered the resulting phase.
+    find("EXECUÇÃO")
     open_finish()
     assert_enabled("save-finish", False)
     tap("Descartar treino")
@@ -1127,7 +1129,7 @@ def run_audit():
               "counterparts": paired, "layoutChecks": layout_checks, "fontChecks": font_checks, "audioChecks": audio_checks, "hostChecks": host_checks,
               "runtime": "Android API35 / Expo Go", "data": "sample, in-memory", "standalone": False,
               "iosDevice": False, "audibleOutputVerified": False,
-              "audioLimit": "Headless emulator uses -no-audio; real Android playback-service evidence does not prove heard sound"}
+              "audioLimit": "Headless emulator uses a private virtual output sink; real Android playback-service evidence does not prove heard sound"}
     (out / "result.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result), flush=True)
 

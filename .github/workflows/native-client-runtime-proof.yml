@@ -46,8 +46,22 @@ jobs:
           export PATH="$(dirname "$SDKMANAGER"):$PATH"
           sdkmanager 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
           printf 'no\n' | avdmanager create avd --force --name gym-proof --package 'system-images;android-35;google_apis;x86_64' --device pixel_5 --path "$ANDROID_AVD_HOME/gym-proof.avd"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          config = Path(os.environ['ANDROID_AVD_HOME']) / 'gym-proof.avd/config.ini'
+          lines = [line for line in config.read_text().splitlines() if not line.startswith(('hw.audioInput=', 'hw.audioOutput='))]
+          config.write_text('\n'.join(lines + ['hw.audioInput=no', 'hw.audioOutput=yes']) + '\n')
+          PY
           avdmanager list avd
           find "$ANDROID_USER_HOME" -maxdepth 3 -name '*.ini' -print
+      - name: Install private null-output audio tooling for this disposable runner
+        if: runner.environment == 'github-hosted'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils
+          dpkg-query -W pulseaudio pulseaudio-utils > runtime-evidence/host-audio-packages.txt
       - name: Allow this temporary runner to use Android acceleration
         if: runner.environment == 'github-hosted'
         run: |
