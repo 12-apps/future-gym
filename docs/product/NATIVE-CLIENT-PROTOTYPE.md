@@ -35,7 +35,60 @@ Numeric editing is available inline and through a dedicated shared Screen route.
 
 Every screen requires the shared `@12-apps/ui/layout/Screen` export for safe area, scroll and keyboard handling. The app pins the published `@12-apps/ui` version `6.57.0`, including Screen, native navigation/sound icons, circular progress center content and bottom-sheet dialogs. The app has no fallback implementation and never imports raw `react-native` components or types.
 
-## Verification record
+## Accepted Android runtime evidence — 2026-10-02
+
+The complete [native audit 37070038717](https://github.com/12-apps/future-gym/actions/runs/37070038717)
+passed against consumer `7295e2c29073f40af0d744db095d0d7342f24dc5`, mobile tree
+`51528c56bbeb6236f7522f6e6d4f5ca4fb65cd62`. Verification-only harness
+`49590703e9f3fa969ecf15e8e45a2470cd87fd7c` captured 56 named states, all 20
+phone/wide counterparts and 59 original native PNGs including host setup and
+cleanup captures. The immutable original HTML references are from successful
+reference run 37068097713, at 390×844 and 1280×800; the input remains 105,552 bytes.
+
+- Inline/routed invalid input, correction, cancel, focused completion and finish
+  validation passed. The completed 42.5 kg × 9 set produced 382.5 kg in summary
+  and history; unperformed sets were excluded.
+- Pause/resume, +15 seconds and skip rest, continue/save/discard, empty-save
+  refusal and clean restart passed. Marina's 120 kg and Rafael's 96 kg records
+  remained separate from each other, the gym and physiotherapy.
+- Fresh-launch 1.3× font checks passed and restored 1.0. Native series labels,
+  complete targets, keyboard actions, persistent footers and finish sheets
+  remained reachable. Expo Go Tools used its supported drag gesture.
+- Background/resume retained populated history. Cold process restart cleared
+  all three in-memory histories as designed, without the linking advisory.
+- All six Android playback-service checks passed. The lifecycle observer saw
+  a currently started player owned by the Expo Go UID before sending HOME;
+  playback was inactive 0.44 seconds later, with no new playback on resume.
+  Enabling sound did not replay old events; muted completion stayed silent.
+- The complete unfiltered native log contains 44,774,991 bytes, verified SHA-256
+  `09a5e5142bc9c5ad89431d799e3f24396a6277f18bbbcd12dd6f677706f07c52`.
+  The unchanged JS/linking/audio rejection gate passed. Development telemetry
+  recorded eight finished cues and one native interruption aligned with HOME,
+  with no delayed/deadline/native-error stop in this run.
+- The actual emulator exited gracefully with code 0 and was reaped before the
+  private Pulse/Xvfb servers, both exit 0. Font and temporary runner KVM access
+  were restored. All 44 driver, collector and environment contracts passed.
+
+[Exact application CI 37069954144](https://github.com/12-apps/future-gym/actions/runs/37069954144)
+passed 256 actual Android/iOS renderer cases in 22 suites, zero skipped, plus
+46 root contracts, lint, types and build. This section is a documentation-only
+acceptance update; its final commit requires its own CI, while the audited app,
+lockfile, root package and Turbo configuration remain byte-identical.
+
+The private virtual output route stayed present throughout 3,944 host samples,
+but the Android Ranchu HAL still logged 3,475 PCM write failures. Their cause is
+not established. Expo Go and Android host warnings also remain in the retained
+raw logs. Acceptance is specifically no rejected Future Gym JS/linking/audio
+failure or app audio warning, not an assertion that every host log is clean.
+Service events and a virtual sink do not prove audible output or successful
+physical PCM delivery. Android/Expo Go execution and iOS renderer tests do not
+establish iOS-device, standalone, production or audible-device acceptance.
+
+## Historical verification record
+
+The sections below preserve prior attempts and their then-current pending or
+failed results. The complete exact-source Android audit above supersedes those
+pending runtime statuses; it does not relabel any failed attempt as passing.
 
 The initial results in this section use the published [UI 6.56.0 release](https://github.com/12-apps/shared-packages/releases/tag/ui-v6.56.0).
 Both prior dependency trees were removed before a frozen-lockfile registry install.
