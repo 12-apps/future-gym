@@ -486,6 +486,22 @@ def playback_started_lines(text, uid):
     return started
 
 
+def parse_package_uid(text):
+    matches = re.findall(r"^package:" + re.escape(PACKAGE) + r"\s+uid:(\d+)\s*$", text, re.M)
+    if len(matches) != 1 or int(matches[0]) < 10000:
+        raise RuntimeError("Cannot uniquely identify installed Expo Go UID for native playback attribution")
+    return int(matches[0])
+
+
+def package_uid():
+    # Android PackageManagerShellCommand documents -U as the package UID output.
+    # Do not infer identity from the version-dependent prose of dumpsys package.
+    listing = adb("shell", "cmd", "package", "list", "packages", "-U", "--user", "0", PACKAGE).decode()
+    (out / "expo-go-package-uid.txt").write_text(listing)
+    (out / "expo-go-package-details.txt").write_bytes(adb("shell", "dumpsys", "package", PACKAGE))
+    return parse_package_uid(listing)
+
+
 def active_owned_playback(text, uid):
     return {line for line in playback_started_lines(text, uid) if re.search(r"\bstate:\s*started\b", line)}
 
@@ -495,11 +511,7 @@ def audio_background_probe():
     top("toggle-sound")
     assert_text("Desligar som")
     node = find("start-set", True, True)
-    package = adb("shell", "dumpsys", "package", PACKAGE).decode()
-    match = re.search(r"\buserId=(\d+)", package)
-    if not match:
-        raise RuntimeError("Missing Expo UID for lifecycle audio attribution")
-    uid = int(match.group(1))
+    uid = package_uid()
     tap_node(node)
     playing = adb("shell", "dumpsys", "audio").decode(errors="replace")
     (out / "audio-lifecycle-foreground.txt").write_text(playing)
@@ -549,11 +561,7 @@ def audio_background_probe():
 def audio_probe(name, control, expect_started):
     # Resolve fresh control first so accessibility observation latency cannot miss a short cue.
     node = find(control, True, True)
-    package = adb("shell", "dumpsys", "package", PACKAGE).decode()
-    match = re.search(r"\buserId=(\d+)", package)
-    if not match:
-        raise RuntimeError("Cannot identify Expo Go UID for native playback attribution")
-    uid = int(match.group(1))
+    uid = package_uid()
     baseline = adb("shell", "dumpsys", "audio").decode(errors="replace")
     before = playback_started_lines(baseline, uid)
     (out / f"audio-{name}-before.txt").write_text(baseline)

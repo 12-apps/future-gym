@@ -752,3 +752,14 @@ theme redesign or local UI primitive. Consumer 7187a32e270e5b00fdc9db761833ec108
 Android/iOS cases, zero skips, in32.282s plus lint/types. Audit application tree
 fde1860b44ee1ef58ae35c9b302f8bc9bb32d702 is exact; the native run must establish readable
 labels, large-font controls and all remaining runtime paths.
+
+
+**Addendum (2026-10-02, installed package UID):** Audit36965653027 passed
+all inline/routed validation, including the main-action regressions, and reached
+the audio toggle after26 captures. Its audio observer failed before attribution
+because `dumpsys package` did not expose the assumed `userId=` field. Use the
+Android PackageManagerShellCommand documented `list packages -U --user 0`
+output, require exactly the installed Expo Go package and a unique application
+UID, and retain both raw package outputs. Never infer ownership from a player
+event alone. The exact-package/ambiguity contract passes with all21 harness
+contracts. Source: https://android.googlesource.com/platform/frameworks/base/+/master/services/core/java/com/android/server/pm/PackageManagerShellCommand.java

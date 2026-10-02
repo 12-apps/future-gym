@@ -167,6 +167,12 @@ class NativeAuditContract(unittest.TestCase):
         self.assertEqual(len(audit.playback_started_lines(data, 10081)), 1)
         self.assertEqual(audit.playback_started_lines(data.replace("state:started", "state:paused"), 10081), set())
 
+    def test_package_uid_uses_exact_installed_package_listing(self):
+        self.assertEqual(audit.parse_package_uid("package:host.exp.exponent uid:10206\n"), 10206)
+        for text in ["", "Permission Denial", "package:host.exp.exponent.clone uid:10206\n", "package:host.exp.exponent uid:0\n", "package:host.exp.exponent uid:10206\npackage:host.exp.exponent uid:10207\n"]:
+            with self.subTest(text=text), self.assertRaisesRegex(RuntimeError, "uniquely identify"):
+                audit.parse_package_uid(text)
+
     def test_active_playback_excludes_history_and_other_apps(self):
         history = MONITOR + "new player piid:9 uid/pid:10081/1234\nplayer piid:9 event:started\n"
         self.assertEqual(audit.active_owned_playback(history, 10081), set())
