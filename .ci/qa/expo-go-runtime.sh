@@ -8,8 +8,8 @@ git rev-parse HEAD > "$OUT/source-sha.txt"
 git status --porcelain > "$OUT/source-working-tree.txt"
 pnpm --dir apps/mobile list --depth 0 --json > "$OUT/installed-native-dependencies.json"
 # Verify the exact reviewed application/configuration trees, not a nearby branch.
-printf '%s\n' '95f96d358ccfb8513996fd03c72fc4b2bb00d87d' > "$OUT/consumer-source-sha.txt"
-test "$(git rev-parse HEAD:apps/mobile)" = 62d0475141e8b8fd9df72aaeb5512d4c0ce54f13
+printf '%s\n' '7187a32e270e5b00fdc9db761833ec108823902c' > "$OUT/consumer-source-sha.txt"
+test "$(git rev-parse HEAD:apps/mobile)" = fde1860b44ee1ef58ae35c9b302f8bc9bb32d702
 test "$(git rev-parse HEAD:pnpm-lock.yaml)" = d67da91050333556feb29efd202060c39b8577dd
 test "$(git rev-parse HEAD:package.json)" = 8cabe285ed5dd4aa5a9857b01d242b1de56a0cc4
 test "$(git rev-parse HEAD:turbo.json)" = 97e7679ecd7862623b6016e0cf964e0e11b51945

@@ -742,3 +742,13 @@ message. The preserved hierarchy contains the full two-sentence error below
 the viewport. Use that exact copy, with a contract comparing it to the real
 application locale so an incomplete exact selector fails locally. No app/error
 assertion is weakened. All20 harness contracts pass.
+
+
+**Addendum (2026-10-02, rendered inline identity):** Independent native screenshot
+review found normal-font set labels overlapping reps and1.3x set numbers hidden
+by ellipsis in the new single-line layout. The same published shared controls
+now have a separate identity/target header and clear inline-control row; no
+theme redesign or local UI primitive. Consumer 7187a32e270e5b00fdc9db761833ec108823902c passed232 real
+Android/iOS cases, zero skips, in32.282s plus lint/types. Audit application tree
+fde1860b44ee1ef58ae35c9b302f8bc9bb32d702 is exact; the native run must establish readable
+labels, large-font controls and all remaining runtime paths.
