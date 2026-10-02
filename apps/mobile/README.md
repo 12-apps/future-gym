@@ -54,8 +54,33 @@ a different app. Signing and distribution remain separate decisions.
 The [SDK 57 Expo Go audit](https://github.com/12-apps/future-gym/actions/runs/36766752079)
 rendered this shell on Android API 35 with `android.package` still unset. It
 verified the localized tab, repeated interaction, background/resume, cold reopen
-and phone/wide layouts. The captures show an Expo production-scheme advisory;
-that warning has not been suppressed or resolved. Runtime behavior passing is
-not a zero-warning or production-readiness claim. See E-008 in
+and phone/wide layouts. Those historical captures show an Expo production-scheme
+advisory. The current `dev` command selects the explicit `development` variant
+and `app.config.js` supplies `future-gym-dev` for Expo Go. This addresses the
+missing configuration rather than hiding a warning or closing its overlay.
+Expo Go still opens `exp://` development URLs. The development scheme is never
+selected for a production Node environment, and the Android export explicitly
+selects the production variant. Default/production config retains no scheme,
+Android package or iOS bundle identifier; release identity remains undecided.
+Use `pnpm --filter @repo/mobile dev --localhost --port 8081` for local audits,
+instead of invoking `expo start` without the variant. To inspect the development
+manifest, run `APP_VARIANT=development pnpm exec expo config --type public`
+from `apps/mobile`. Runtime behavior passing is not a production-readiness claim.
+The updated runtime must prove the advisory stays absent through cold reopen.
+See E-008 and E-009 in
 [`docs/ci/EXPERIMENTS.md`](../../docs/ci/EXPERIMENTS.md) for the measured attempts,
 screenshots and remaining acceptance boundary.
+
+## Functional client prototype (GYM-4)
+
+The prototype adds tenant-scoped sample plans, native workout execution and timers,
+validated load/repetition input, and completed-set history. One global sample user
+can own a gym and be a client of another provider. All records stay in memory for
+this demonstration; no login, network persistence, billing or real prescription
+is represented as implemented.
+
+The normal native Jest command runs both Android and iOS presets. A preset pass
+is source/renderer coverage, not a device or simulator boot. The required CI build
+remains Android export; a separate `expo export --platform ios --output-dir
+<scratch-directory>` verifies iOS bundling without creating an IPA or a permanent
+bundle identifier. See [scope, limitations and acceptance steps](../../docs/product/NATIVE-CLIENT-PROTOTYPE.md).

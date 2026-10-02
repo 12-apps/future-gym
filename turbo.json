@@ -41,6 +41,7 @@
     ".github/workflows/ci.yml"
   ],
   "globalEnv": [
+    "APP_VARIANT",
     "NODE_ENV",
     "CI",
     "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH",

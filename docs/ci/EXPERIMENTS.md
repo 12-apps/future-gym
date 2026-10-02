@@ -562,3 +562,110 @@ may conceal a visible warning or claim production acceptance.
 
 
 **Addendum (2026-10-01, development acceptance decision):** The Expo production-scheme advisory is accepted for development inside Expo Go only. It does not waive production linking configuration, assign an Android/iOS application identifier, authorize publication or suppress any warning. The measured foundation runtime and screenshots from run 36766752079 remain the evidence; this documentation decision changes no application code. The foundation may precede the functional client merge after its exact-head CI and review checks pass. The functional client still requires its own runtime and visual acceptance.
+
+### E-009 — Development linking: can the native audit run without the recurring advisory?
+
+**Status:** Open — 2026-10-01
+**Question:** Remove the actual cause of Expo's recurring scheme advisory while
+keeping production identity deferred, then prove all native prototype states.
+**Method:** Inspect the captured manifest and pinned `expo-linking` resolver;
+provide an explicit development-only scheme via dynamic Expo config and the
+normal cross-platform development command. Add regressions for default,
+development and production variants. The Android export pins the production
+variant even if its caller inherited development variables. Repeat exact-head CI
+and the GitHub-hosted Android audit, with no warning-dismissal step and with the
+advisory itself treated as a failing runtime observation.
+**Result:** Prior run 36908104023 reached the cold-reopened home but its advisory
+intercepted History navigation. The owner requested a cause fix after the
+three-failure protocol stop. New local root contracts pass 46 cases, including
+three config regressions; updated device and CI evidence remain pending.
+**Why:** The prior public manifest has no scheme. `expo-linking@57.0.9`
+`src/Schemes.ts` emits this exact warning when `collectManifestSchemes()` is empty,
+before selecting Expo Go's `exp` transport. Development config now supplies a
+scheme without registering a standalone application or changing production
+identity. The resolver still uses Expo Go's normal transport.
+**Evidence:** `apps/mobile/app.config.js`, `scripts/start-dev.cjs`,
+`scripts/__tests__/expo-development-config.test.mjs`, and
+[prior Android run](https://github.com/12-apps/future-gym/actions/runs/36908104023).
+**Regression watch:** No warning suppression, `LogBox` filtering or automatic
+advisory dismissal. Default/production config must not inherit the development
+scheme. No Android package/iOS bundle identifier is assigned. The audit must
+prove warning-free initial and cold launches, preserve screenshots, use only
+the authorized temporary runner KVM ACL and always restore its original value.
+
+**Addendum (2026-10-01):** First exact-head CI 36915179972 passed the 46 root
+contracts and types, but lint correctly rejected the new `APP_VARIANT` because
+it was not declared in Turbo. The variable is now in `globalEnv` and the config
+regression also pins that declaration. This keeps variant-dependent configuration
+inside the task environment/cache identity rather than silencing the lint rule.
+
+**Addendum (2026-10-01, E-009 verification):** Exact-head CI 36915486404 passed
+46 root contracts and 122 Android/iOS renderer cases, with zero skipped, plus
+lint, types and Android export. Native audit 36915950179 passed all 23 real
+Android states with application/configuration bytes matching 24c37a3. Initial
+launch and cold reopen contain no scheme warning, the empty-history assertion
+completed, and the temporary runner KVM ACL was restored. Independent visual
+inspection confirmed the warning-free frames. The separate original-reference
+job captured all 20 supplied HTML artboards. These results precede later
+functional/fidelity changes and do not establish their final acceptance.
+
+### E-010 — Renderer audio boundary: do tests distinguish mocked capability from runtime playback?
+
+**Status:** Open — 2026-10-01
+**Question:** Preserve Android/iOS real-router UI coverage after foreground-only
+workout cues are added, without pretending a renderer can decode or play sound.
+**Method:** Add a renderer-only `expo-audio` setup mock to both existing platform
+projects. Controlled hook tests override it to exercise setup/playback failures,
+late updates, mute/pause/navigation cancellation, cleanup and repeated cues.
+Pure tests exercise cue selection without mutating workout state and verify the
+committed generated WAV assets. Actual runtime playback/error evidence belongs
+to the separate Android audit, not these mocks.
+**Result:** Final integrated renderer and device execution is pending. Earlier
+pure/syntax checks do not replace the affected native suites.
+**Why:** The existing native renderer cannot provide the operating-system audio
+player. An explicit documented device boundary keeps UI tests deterministic while
+focused failure tests and real-runtime checks retain responsibility for behavior.
+**Evidence:** `apps/mobile/jest.config.js`, `__tests__/audio-setup.tsx`, the three
+`workout-audio*.test.tsx` suites and `src/client/workout-audio.ts`.
+**Regression watch:** No conditional test skip, muted warning filter or production
+mock. Both platform suites must execute. Cues must not complete sets, cross
+user/tenant/session boundaries, replay after interruption or request recording/
+background permissions. Any visible audio error or new runtime warning blocks
+the device gate.
+
+
+**Addendum (2026-10-01, first E-010 candidate):** CI 36925982152 rejected the
+first audio-only review unit before its tests: the hook cleanup incremented ref
+counters directly inside an effect cleanup, triggering the exhaustive-deps
+stale-ref warning, and the controlled player mock had a recursive inferred
+return type. Stable invalidation callbacks now own cancellation and the mock
+removal callback explicitly returns void. No lint suppression or relaxed type
+check is added. The failed run is not a native-unit or runtime pass; the corrected
+exact-head run must execute those tests before acceptance.
+
+
+**Addendum (2026-10-01, corrected E-010 source unit):** Head
+`ebc45a30c32dbc16f01c43604f6c54ee7ff0f710` passed CI 36926559369. Fresh native
+execution passed 206 cases across 20 Android/iOS suites, zero skipped, and the
+signal guards accepted the real JUnit count. Repository contracts, lint, types
+and Android export passed. This isolated unit adds the real audio capability and
+controlled tests; the session-screen controls still await the approved shared UI
+release and final integrated native audit. No audible-output/device claim follows
+from this renderer result.
+
+
+**Addendum (2026-10-01, composed control path):** A pure transition reproduction
+found that a valid inline load blur plus Skip-rest in one observed update lost
+its rest-end cue: the guard compared log object identity rather than set
+completion state. It now compares completion flags, retaining the manual-toggle
+suppression while preserving the cue after load-only edits. A permanent case
+pins the combined transition and unchanged completion data. This fix reopens the
+affected exact-head checks; the earlier 206-case result is not its verification.
+
+**Addendum (2026-10-01, composed-path verification):** CI36928846082 at
+593515c passed 208 actual Android/iOS cases across 20 suites, zero skipped and
+fresh execution, plus root contracts, lint, types and Android export. The final
+session-screen integration consumes the verified registry release UI6.57.0;
+its unchanged dependency/peer contract preserves the prior resolved lock graph.
+The frozen offline lock validation passed. Fresh real-registry CI installation
+and final integrated device evidence remain required before merge.
