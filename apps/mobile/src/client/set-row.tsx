@@ -54,7 +54,7 @@ export function SetRow({ ref, set, index, target, active, onSave, onToggle, onEd
       <Stack direction="row" gap={1} align="center">
         <Checkbox variant="rounded" checked={set.completed} onChange={() => { if (commit()) onToggle(); }} accessibilityLabel={`${copy.set} ${index + 1}: ${set.completed ? copy.completed : copy.pending}`} dataTestId={`toggle-set-${index}`} />
         <Box flex={1}><Button variant="text" size="xs" onPress={() => { resetDraft(); onEdit(); }} accessibilityLabel={`${copy.edit} ${copy.set.toLowerCase()} ${index + 1}`} dataTestId={`edit-set-${index}`}>{copy.set} {index + 1}</Button></Box>
-        <Text size="xs">{copy.target} {target}</Text>
+        <Box style={{ minWidth: theme.spacing(8), flexShrink: 0 }}><Text size="xs" style={{ textAlign: "right" }}>{`${copy.target} ${target}`}</Text></Box>
       </Stack>
       <Stack direction="row" gap={1} align="center">
         <Box flex={1}><Input size="xs" label="reps" accessibilityLabel={`${copy.reps}, ${copy.set} ${index + 1}`} value={reps} onChangeText={setReps} onFocus={focus} onBlur={blur} inputMode="numeric" error={invalid} dataTestId={`inline-reps-${index}`} /></Box>

@@ -248,3 +248,16 @@ set identity and target in a clear header, with the same inline fields and step
 controls below. This uses existing shared Stack/Box/Input/Button primitives and
 tokens, without changing the accepted prototype theme. The visual readability
 fix requires fresh source checks and native captures at both font settings.
+
+The first header capture at 7187a32 restored series numbers but exposed another
+native text-measurement boundary: normal-font target text painted only `meta`,
+with `10` missing despite being present in the accessibility tree. The target
+now has a non-shrinking shared Box with a token-based minimum width, and one
+complete text value. No validation handler, theme or dependency changed. Fresh
+normal/1.3x raster inspection remains required; renderer text alone cannot close
+this finding. The owner's resumption instruction keeps the repair active while
+retaining all required source, native, visual and CI gates.
+
+This bounded correction passed all 232 Android/iOS renderer cases across 22
+suites, with zero skipped cases, plus lint and type checks. Its actual native
+raster verification is still pending; the prior screenshots remain preserved.
