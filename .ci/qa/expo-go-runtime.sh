@@ -15,6 +15,66 @@ test "$(git rev-parse HEAD:package.json)" = 8cabe285ed5dd4aa5a9857b01d242b1de56a
 test "$(git rev-parse HEAD:turbo.json)" = 97e7679ecd7862623b6016e0cf964e0e11b51945
 export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
 # HOST_AUDIO_FUNCTIONS_BEGIN
+start_host_display() {
+  command -v Xvfb >/dev/null
+  command -v xauth >/dev/null
+  command -v xdpyinfo >/dev/null
+  GYM_DISPLAY_DIR=$(mktemp -d "${RUNNER_TEMP:-/tmp}/gym-display.XXXXXX")
+  chmod 700 "$GYM_DISPLAY_DIR"
+  HOST_DISPLAY_STARTED=1
+  export XAUTHORITY="$GYM_DISPLAY_DIR/authority"
+  touch "$XAUTHORITY"
+  chmod 600 "$XAUTHORITY"
+  local cookie ready=0
+  cookie=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+  # Xvfb reads the authorization cookie; the client entry is added once the
+  # server atomically chooses a free display via its supported -displayfd option.
+  xauth -f "$XAUTHORITY" add :0 MIT-MAGIC-COOKIE-1 "$cookie"
+  Xvfb -displayfd 3 -screen 0 1920x1080x24 -nolisten tcp -auth "$XAUTHORITY" \
+    3> "$GYM_DISPLAY_DIR/number" > "$OUT/xvfb.log" 2>&1 &
+  GYM_DISPLAY_PID=$!
+  for _ in $(seq 1 100); do
+    kill -0 "$GYM_DISPLAY_PID" 2>/dev/null || break
+    if test -s "$GYM_DISPLAY_DIR/number"; then ready=1; break; fi
+    sleep 0.1
+  done
+  test "$ready" = 1
+  local number
+  number=$(cat "$GYM_DISPLAY_DIR/number")
+  [[ "$number" =~ ^[0-9]+$ ]]
+  export DISPLAY=":$number"
+  xauth -f "$XAUTHORITY" add "$DISPLAY" MIT-MAGIC-COOKIE-1 "$cookie"
+  unset cookie
+  timeout 5 xdpyinfo -display "$DISPLAY" > "$OUT/xvfb-display-info.txt"
+  # Confirm the real server rejects a client without this job's cookie.
+  touch "$GYM_DISPLAY_DIR/unauthorized"
+  if XAUTHORITY="$GYM_DISPLAY_DIR/unauthorized" timeout 5 xdpyinfo -display "$DISPLAY" \
+    > "$OUT/xvfb-unauthorized.txt" 2>&1; then
+    echo 'Private display accepted a client without its authorization cookie'
+    return 1
+  fi
+  printf '{"status":"connected","serverPid":%s,"display":"%s","authentication":"MIT-MAGIC-COOKIE-1","tcpListening":false}\n' \
+    "$GYM_DISPLAY_PID" "$DISPLAY" > "$OUT/host-display.json"
+}
+stop_host_display() {
+  local stopped=1 display_exit=0
+  if test -n "${GYM_DISPLAY_PID:-}"; then
+    stopped=0
+    if kill -0 "$GYM_DISPLAY_PID" 2>/dev/null; then
+      kill -TERM "$GYM_DISPLAY_PID" 2>/dev/null || true
+      for _ in $(seq 1 50); do
+        if ! kill -0 "$GYM_DISPLAY_PID" 2>/dev/null; then stopped=1; break; fi
+        sleep 0.1
+      done
+      if test "$stopped" = 0; then kill -KILL "$GYM_DISPLAY_PID" 2>/dev/null || true; fi
+    fi
+    if wait "$GYM_DISPLAY_PID"; then display_exit=0; else display_exit=$?; fi
+    printf '{"serverPid":%s,"exitCode":%s,"stopped":%s}\n' "$GYM_DISPLAY_PID" "$display_exit" \
+      "$(kill -0 "$GYM_DISPLAY_PID" 2>/dev/null && echo false || echo true)" > "$OUT/host-display-cleanup.json"
+  fi
+  rm -rf -- "$GYM_DISPLAY_DIR"
+  test "$stopped" = 1 && { test "$display_exit" = 0 || test "$display_exit" = 143; }
+}
 start_host_audio() {
   # Verify the installed official binary before selecting its documented backend.
   timeout 15 emulator -version > "$OUT/emulator-version.txt" 2>&1
@@ -25,9 +85,27 @@ start_host_audio() {
   command -v pactl >/dev/null
   GYM_PULSE_DIR=$(mktemp -d "${RUNNER_TEMP:-/tmp}/gym-pulse.XXXXXX")
   chmod 700 "$GYM_PULSE_DIR"
+  HOST_AUDIO_STARTED=1
   export PULSE_RUNTIME_PATH="$GYM_PULSE_DIR/run" PULSE_STATE_PATH="$GYM_PULSE_DIR/state"
   export PULSE_CONFIG_PATH="$GYM_PULSE_DIR/config" PULSE_SERVER="unix:$GYM_PULSE_DIR/native"
   export PULSE_SINK=gym_null PULSE_COOKIE="$GYM_PULSE_DIR/cookie"
+  # Android QEMU's pa driver reads QEMU_<driver>_<option>, separately from libpulse.
+  export QEMU_PA_SERVER="$PULSE_SERVER" QEMU_PA_SINK="$PULSE_SINK"
+  python3 - "$OUT" <<'HOST_AUDIO_LOADER'
+import ctypes, json, os, sys
+from pathlib import Path
+libraries = {}
+for name in ["libpulse.so", "libpulse.so.0"]:
+    try:
+        ctypes.CDLL(name)
+        libraries[name] = {"loaded": True}
+    except OSError as error:
+        libraries[name] = {"loaded": False, "error": str(error)}
+(Path(sys.argv[1]) / "host-audio-loader.json").write_text(json.dumps({"libraries": libraries,
+    "environment": {name: os.environ[name] for name in ["PULSE_SERVER", "PULSE_SINK", "QEMU_PA_SERVER", "QEMU_PA_SINK"]}}, indent=2))
+if not libraries["libpulse.so.0"]["loaded"]:
+    raise SystemExit("PulseAudio runtime library is unavailable")
+HOST_AUDIO_LOADER
   mkdir -m 700 "$PULSE_RUNTIME_PATH" "$PULSE_STATE_PATH" "$PULSE_CONFIG_PATH"
   python3 - "$PULSE_COOKIE" <<'PULSE_COOKIE_CREATE'
 import os, sys
@@ -45,7 +123,6 @@ PULSE_CONFIG
     --high-priority=no --realtime=no --disallow-exit --disallow-module-loading \
     --log-target=stderr --log-level=info --file="$OUT/pulse-null.pa" > "$OUT/pulseaudio.log" 2>&1 &
   GYM_PULSE_PID=$!
-  HOST_AUDIO_STARTED=1
   local ready=0
   for _ in $(seq 1 100); do
     kill -0 "$GYM_PULSE_PID" 2>/dev/null || break
@@ -153,19 +230,22 @@ stop_host_audio_monitor() {
   fi
 }
 stop_host_audio() {
-  local stopped=0 pulse_exit=0 monitor_ok=1
+  local stopped=1 pulse_exit=0 monitor_ok=1
   stop_host_audio_monitor || monitor_ok=0
-  if kill -0 "$GYM_PULSE_PID" 2>/dev/null; then
-    kill -TERM "$GYM_PULSE_PID" 2>/dev/null || true
-    for _ in $(seq 1 50); do
-      if ! kill -0 "$GYM_PULSE_PID" 2>/dev/null; then stopped=1; break; fi
-      sleep 0.1
-    done
-    if test "$stopped" = 0; then kill -KILL "$GYM_PULSE_PID" 2>/dev/null || true; fi
+  if test -n "${GYM_PULSE_PID:-}"; then
+    stopped=0
+    if kill -0 "$GYM_PULSE_PID" 2>/dev/null; then
+      kill -TERM "$GYM_PULSE_PID" 2>/dev/null || true
+      for _ in $(seq 1 50); do
+        if ! kill -0 "$GYM_PULSE_PID" 2>/dev/null; then stopped=1; break; fi
+        sleep 0.1
+      done
+      if test "$stopped" = 0; then kill -KILL "$GYM_PULSE_PID" 2>/dev/null || true; fi
+    fi
+    if wait "$GYM_PULSE_PID"; then pulse_exit=0; else pulse_exit=$?; fi
+    printf '{"serverPid":%s,"exitCode":%s,"stopped":%s}\n' "$GYM_PULSE_PID" "$pulse_exit" \
+      "$(kill -0 "$GYM_PULSE_PID" 2>/dev/null && echo false || echo true)" > "$OUT/host-audio-cleanup.json"
   fi
-  if wait "$GYM_PULSE_PID"; then pulse_exit=0; else pulse_exit=$?; fi
-  printf '{"serverPid":%s,"exitCode":%s,"stopped":%s}\n' "$GYM_PULSE_PID" "$pulse_exit" \
-    "$(kill -0 "$GYM_PULSE_PID" 2>/dev/null && echo false || echo true)" > "$OUT/host-audio-cleanup.json"
   # Only this job's mktemp directory is removed; no user audio configuration changes.
   rm -rf -- "$GYM_PULSE_DIR"
   test "$stopped" = 1 && test "$monitor_ok" = 1 && { test "$pulse_exit" = 0 || test "$pulse_exit" = 143; }
@@ -313,6 +393,20 @@ path.write_text(json.dumps(result, indent=2))
 HOST_AUDIO_CLEANUP_FAILURE
     fi
   fi
+  if test -n "${HOST_DISPLAY_STARTED:-}"; then
+    if ! stop_host_display; then
+      echo 'Private Xvfb display did not complete its bounded cleanup'
+      exit_status=1
+      python3 - "$OUT/result.json" <<'HOST_DISPLAY_CLEANUP_FAILURE'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+result = json.loads(path.read_text()) if path.exists() else {}
+result.update(status="failed-host-display-cleanup", hostDisplayCleanupError="Private Xvfb did not complete expected cleanup")
+path.write_text(json.dumps(result, indent=2))
+HOST_DISPLAY_CLEANUP_FAILURE
+    fi
+  fi
   for log in emulator.log metro.log; do
     test ! -f "$OUT/$log" || { echo "RUNTIME_LOG:$log"; tail -100 "$OUT/$log"; }
   done
@@ -337,13 +431,25 @@ echo "Using acceleration=$ACCEL for this disposable runtime job"
 emulator -list-avds | tee "$OUT/avd-list.txt"
 grep -qx gym-proof "$OUT/avd-list.txt"
 start_host_audio
+start_host_display
 # A real backend feeds only the private null sink; guest microphone input is disabled.
 grep -qx 'hw.audioInput=no' "$ANDROID_AVD_HOME/gym-proof.avd/config.ini"
-emulator -avd gym-proof -no-window -audio pa -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
+# -no-window selects the headless binary with PulseAudio stubs. The normal Qt
+# binary uses this job's authenticated virtual display and the real pa backend.
+emulator -avd gym-proof -audio pa -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel "$ACCEL" -memory 2048 -cores 2 > "$OUT/emulator.log" 2>&1 &
 EMULATOR_PID=$!
 export EMULATOR_PID
 timeout 900 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do kill -0 "$EMULATOR_PID" || exit 1; sleep 5; done' 
 kill -0 "$EMULATOR_PID"
+python3 - "$OUT" "$EMULATOR_PID" <<'VERIFY_EMULATOR_BINARY'
+import json, os, sys
+from pathlib import Path
+executable = os.readlink(f"/proc/{sys.argv[2]}/exe")
+record = {"pid": int(sys.argv[2]), "executable": executable, "display": os.environ["DISPLAY"]}
+(Path(sys.argv[1]) / "emulator-process.json").write_text(json.dumps(record, indent=2))
+if Path(executable).name != "qemu-system-x86_64":
+    raise SystemExit("Expected the normal Qt emulator binary with actual PulseAudio support")
+VERIFY_EMULATOR_BINARY
 verify_host_audio before
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard

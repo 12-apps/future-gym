@@ -60,8 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils
-          dpkg-query -W pulseaudio pulseaudio-utils > runtime-evidence/host-audio-packages.txt
+          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils xvfb xauth x11-utils
+          dpkg-query -W pulseaudio pulseaudio-utils xvfb xauth x11-utils > runtime-evidence/host-audio-packages.txt
       - name: Allow this temporary runner to use Android acceleration
         if: runner.environment == 'github-hosted'
         run: |

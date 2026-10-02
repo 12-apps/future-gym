@@ -887,3 +887,25 @@ without a playback observation, and complete server/private-file cleanup after
 recording/route failures. These fixtures do not establish emulator support:
 the actual runner preflight must retain its installed binary help/version,
 connection and stream evidence before the native proof can be accepted.
+
+**Addendum (2026-10-02, select a real playback backend):** Run37063060202
+failed its host preflight before launching Expo. PulseAudio16.1 started its
+private null sink and authenticated pactl clients, but emulator37.2.12 reported
+that its PA context could not initialize; no QEMU client reached the server.
+The connection requirement correctly refused acceptance. Private server exit0
+and runner KVM restoration passed; this run provides no new application proof.
+
+The official emulator launcher selects the separate headless QEMU executable
+for -no-window. Its headless PulseAudio implementation returns empty/null
+results, so it cannot establish the required real output connection. Use the
+normal Qt executable on a private virtual X display instead, retain the private
+null sink, and pass the documented QEMU_PA_SERVER/QEMU_PA_SINK options explicitly.
+The next run must record the actual non-headless executable and prove its
+connection/playback route. This changes only the disposable host: no app source,
+microphone, warning filter, production identity or accepted appearance changes.
+
+Independent review and four host contracts (seven scenarios) pass, including
+display readiness/authentication rejection and cleanup before a server PID is
+available. Display cleanup failure also marks the result failed, matching the
+job outcome. The unchanged 32 driver and three collector contracts remain green.
+Real binary/backend support and all native acceptance still require the run.

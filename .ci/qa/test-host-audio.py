@@ -17,11 +17,29 @@ name, args = Path(sys.argv[0]).name, sys.argv[1:]
 mode = os.environ["HOST_FIXTURE_MODE"]
 if name == "emulator":
     print("Android emulator 37.2.12 fixture" if args == ["-version"] else "-audio <backend> selects backend")
+elif name == "Xvfb":
+    assert args == ["-displayfd", "3", "-screen", "0", "1920x1080x24", "-nolisten", "tcp", "-auth", os.environ["XAUTHORITY"]]
+    authority = Path(os.environ["XAUTHORITY"])
+    assert stat.S_IMODE(authority.stat().st_mode) == 0o600
+    assert stat.S_IMODE(authority.parent.stat().st_mode) == 0o700
+    (root / "display-dir").write_text(str(authority.parent))
+    (root / "display-pid").write_text(str(os.getpid()))
+    if mode == "display-death": raise SystemExit(5)
+    os.write(3, b"17\n")
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    while True: time.sleep(0.01)
+elif name == "xdpyinfo":
+    assert args == ["-display", ":17"] and os.environ["DISPLAY"] == ":17"
+    if Path(os.environ["XAUTHORITY"]).name == "unauthorized":
+        raise SystemExit(0 if mode == "display-open" else 1)
+    print("name of display: :17")
 elif name == "pulseaudio":
     assert "-n" in args and "--daemonize=no" in args and "--disallow-module-loading" in args
     cookie = Path(os.environ["PULSE_COOKIE"])
     assert len(cookie.read_bytes()) == 256 and stat.S_IMODE(cookie.stat().st_mode) == 0o600
     assert cookie.parent == Path(os.environ["PULSE_RUNTIME_PATH"]).parent
+    assert os.environ["QEMU_PA_SERVER"] == os.environ["PULSE_SERVER"]
+    assert os.environ["QEMU_PA_SINK"] == os.environ["PULSE_SINK"] == "gym_null"
     (root / "pulse-dir").write_text(str(cookie.parent))
     (root / "pulse-pid").write_text(str(os.getpid()))
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
@@ -107,6 +125,40 @@ verify_host_audio after
                 self.assertEqual(monitor["status"], "failed")
                 self.assertTrue(monitor["errors"])
                 self.assertNotIn("after", record)
+
+    def test_private_display_readiness_authorization_and_failure_cleanup(self):
+        for mode in ["valid", "display-open", "display-death"]:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as folder:
+                directory = Path(folder)
+                (directory / "functions.sh").write_text(FUNCTIONS)
+                for name in ["Xvfb", "xdpyinfo"]:
+                    command = directory / name
+                    command.write_text(FAKE)
+                    command.chmod(0o755)
+                out = directory / "evidence"
+                out.mkdir()
+                environment = {**os.environ, "PATH": folder + os.pathsep + os.environ["PATH"],
+                               "HOST_FIXTURE": folder, "HOST_FIXTURE_MODE": mode, "RUNNER_TEMP": folder}
+                run = subprocess.run(["bash", "-c", '''
+set -euo pipefail
+OUT="$1/evidence"
+source "$1/functions.sh"
+trap 'rc=$?; if test -n "${HOST_DISPLAY_STARTED:-}"; then stop_host_display || rc=1; fi; exit "$rc"' EXIT
+start_host_display
+''', "host-display-contract", folder], env=environment, capture_output=True, text=True, timeout=20)
+                self.assertEqual(run.returncode == 0, mode == "valid", run.stderr)
+                cleanup = json.loads((out / "host-display-cleanup.json").read_text())
+                self.assertTrue(cleanup["stopped"])
+                self.assertFalse(Path((directory / "display-dir").read_text()).exists())
+                with self.assertRaises(ProcessLookupError):
+                    os.kill(int((directory / "display-pid").read_text()), 0)
+                if mode == "valid":
+                    record = json.loads((out / "host-display.json").read_text())
+                    self.assertEqual(record["display"], ":17")
+                    self.assertEqual(record["authentication"], "MIT-MAGIC-COOKIE-1")
+                    self.assertFalse(record["tcpListening"])
+                else:
+                    self.assertFalse((out / "host-display.json").exists())
 
 
 if __name__ == "__main__":
