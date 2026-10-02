@@ -50,14 +50,19 @@ elif name == "pactl":
         print("Server Name: pulseaudio")
         raise SystemExit(0)
     assert args[:3] == ["--format=json", "list", args[2]]
-    playing = (root / "play").exists()
+    playing = (root / "play").exists() or mode.startswith("boot-")
+    # PulseAudio 16.1, actual run 37064804431: client.index is 1 (number),
+    # sink-input.client is "1" (string), and sink-input.sink is 0 (number).
+    stream = {"index": 0, "client": "5" if "wrong-client" in mode else "1",
+              "sink": 9 if "wrong-route" in mode else 0,
+              "sample_specification": "s16le 2ch 44100Hz"}
     values = {
         "modules": [{"name": "module-null-sink"}, {"name": "module-native-protocol-unix"}],
         "sinks": [{"index": 0, "name": "gym_null"}],
         "sources": [{"index": 0, "name": "gym_null.monitor"}],
-        "clients": [{"index": 77, "properties": {"application.process.binary": "qemu-system-x86_64"}}],
-        "sink-inputs": ([{"index": 9, "client": 77, "sink": 1 if mode == "wrong-route" else 0}]
-                        if playing and mode != "no-playback" else []),
+        "clients": [{"index": 1, "properties": {"application.process.binary": "qemu-system-x86_64"}},
+                    {"index": 5, "properties": {"application.process.binary": "pactl"}}],
+        "sink-inputs": [stream] if playing and mode != "no-playback" else [],
         "source-outputs": [{"index": 4}] if playing and mode == "recording" else [],
     }
     print(json.dumps(values[args[2]]))
@@ -92,7 +97,8 @@ stop_host_audio_monitor
 verify_host_audio after
 ''', "host-audio-contract", folder], env=environment, capture_output=True, text=True, timeout=20)
             record = json.loads((out / "host-audio.json").read_text())
-            monitor = json.loads((out / "host-audio-monitor.json").read_text())
+            monitor_path = out / "host-audio-monitor.json"
+            monitor = json.loads(monitor_path.read_text()) if monitor_path.exists() else None
             cleanup = json.loads((out / "host-audio-cleanup.json").read_text())
             self.assertTrue(cleanup["stopped"], run.stderr)
             self.assertIn(cleanup["exitCode"], [0, 143])
@@ -105,11 +111,30 @@ verify_host_audio after
         run, record, monitor = self.execute("valid")
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(record["before"]["playbackStreams"], [])
-        self.assertEqual(record["after"]["playbackStreams"], [9])
+        self.assertEqual(record["after"]["playbackStreams"], [0])
         self.assertTrue(monitor["observedEmulatorPlayback"])
         self.assertEqual(monitor["status"], "complete")
         self.assertFalse(record["physicalInput"])
         self.assertFalse(record["audibleOutputVerified"])
+
+    def test_actual_pulse_json_client_types_pass_connected_preflight_and_monitor(self):
+        run, record, monitor = self.execute("boot-valid")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(record["before"]["emulatorClients"], [1])
+        self.assertEqual(record["before"]["playbackStreams"], [0])
+        self.assertEqual(record["after"]["playbackStreams"], [0])
+        self.assertTrue(monitor["observedEmulatorPlayback"])
+        self.assertEqual(monitor["status"], "complete")
+
+    def test_wrong_client_or_sink_still_fails_connected_preflight(self):
+        for mode in ["boot-wrong-client", "boot-wrong-route"]:
+            with self.subTest(mode=mode):
+                run, record, monitor = self.execute(mode)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertIn("Missing emulator backend connection or unexpected playback stream", run.stderr)
+                self.assertNotIn("before", record)
+                self.assertNotIn("after", record)
+                self.assertIsNone(monitor)
 
     def test_configuration_without_observed_playback_cannot_pass(self):
         run, record, monitor = self.execute("no-playback")
@@ -118,7 +143,7 @@ verify_host_audio after
         self.assertNotIn("after", record)
 
     def test_failed_monitor_still_cleans_private_server_and_files(self):
-        for mode in ["recording", "wrong-route"]:
+        for mode in ["recording", "wrong-route", "wrong-client"]:
             with self.subTest(mode=mode):
                 run, record, monitor = self.execute(mode)
                 self.assertNotEqual(run.returncode, 0)

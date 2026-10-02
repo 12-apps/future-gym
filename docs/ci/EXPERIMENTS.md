@@ -909,3 +909,22 @@ display readiness/authentication rejection and cleanup before a server PID is
 available. Display cleanup failure also marks the result failed, matching the
 job outcome. The unchanged 32 driver and three collector contracts remain green.
 Real binary/backend support and all native acceptance still require the run.
+
+**Addendum (2026-10-02, preserve PulseAudio identifier semantics):**
+Run37064804431 proved the normal emulator37.2.12 executable and a real QEMU
+playback stream connected to the private null sink. Both private servers
+stopped with exit0 and KVM restoration passed. It stopped before app launch
+because pactl16 represents an object's index as a JSON number but a stream's
+client reference as a JSON string (`1` versus `"1"`). The preflight and stream
+observer compared those representations directly. Normalize both documented
+numeric identifiers before matching; unexpected routes, recording and missing
+playback still fail. The real captured JSON supplies the regression fixture.
+No application source or warning gate changes. Full native acceptance remains
+pending a complete run with the corrected observation.
+
+Six host contracts (eleven scenarios) now cover the real number/string shape,
+already-active and lazy streams, and incorrect client/sink routes in both
+preflight and monitoring. The unnormalized parser fails on the real retained
+JSON; the normalized parser passes, without changing the source artifacts.
+Independent review approved this identifier-only correction. Together with the
+unchanged driver/collector suites, 41 harness contracts pass.

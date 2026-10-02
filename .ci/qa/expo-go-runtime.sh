@@ -154,8 +154,9 @@ if len(sinks) != 1 or sinks[0].get("name") != "gym_null":
     raise SystemExit("The sole PulseAudio output must be the private null sink")
 if len(sources) != 1 or sources[0].get("name") != "gym_null.monitor" or outputs:
     raise SystemExit("Physical input or an active recording stream was exposed")
-owned = {c["index"] for c in clients if "qemu-system" in c.get("properties", {}).get("application.process.binary", "")}
-streams = [s for s in inputs if s.get("client") in owned and s.get("sink") == sinks[0]["index"]]
+# pactl16 emits numeric object indexes but string client references.
+owned = {int(c["index"]) for c in clients if "qemu-system" in c.get("properties", {}).get("application.process.binary", "")}
+streams = [s for s in inputs if int(s["client"]) in owned and int(s["sink"]) == int(sinks[0]["index"])]
 if not owned or len(streams) != len(inputs):
     raise SystemExit("Missing emulator backend connection or unexpected playback stream")
 if label == "after":
@@ -189,9 +190,9 @@ try:
                     raise RuntimeError("Unexpected pactl diagnostic: " + reply.stderr.strip())
                 state[kind] = json.loads(reply.stdout)
             samples += 1
-            owned = {c["index"] for c in state["clients"] if "qemu-system" in c.get("properties", {}).get("application.process.binary", "")}
-            sink = json.loads((directory / "pulse-before-sinks.json").read_text())[0]["index"]
-            if state["source-outputs"] or any(s.get("client") not in owned or s.get("sink") != sink for s in state["sink-inputs"]):
+            owned = {int(c["index"]) for c in state["clients"] if "qemu-system" in c.get("properties", {}).get("application.process.binary", "")}
+            sink = int(json.loads((directory / "pulse-before-sinks.json").read_text())[0]["index"])
+            if state["source-outputs"] or any(int(s["client"]) not in owned or int(s["sink"]) != sink for s in state["sink-inputs"]):
                 raise RuntimeError("Recording or unexpected host playback route observed")
             seen = seen or bool(state["sink-inputs"])
             # Preserve route changes with real clock identity, without recording audio.
