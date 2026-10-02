@@ -53,8 +53,10 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
     active.current = null;
     if (!playing) return;
     clearTimeout(playing.timer);
+    // Unregister before releasing: Expo's native foreground callback otherwise
+    // retains the disposed player and may try to resume its released resources.
     // Attempt every cleanup step even if a native method fails.
-    for (const clean of [() => playing.subscription?.remove(), () => playing.player.pause(), () => playing.player.release()]) {
+    for (const clean of [() => playing.subscription?.remove(), () => playing.player.pause(), () => playing.player.remove(), () => playing.player.release()]) {
       try { clean(); } catch (cause) { report("cleanup", cause); }
     }
   }, [report]);

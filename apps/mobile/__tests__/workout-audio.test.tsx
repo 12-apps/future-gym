@@ -13,7 +13,7 @@ const players: ReturnType<typeof playerMock>[] = [];
 function playerMock() {
   let statusListener: (status: AudioStatus) => void = () => undefined;
   return {
-    play: jest.fn(), pause: jest.fn(), release: jest.fn(), removeListener: jest.fn(),
+    play: jest.fn(), pause: jest.fn(), remove: jest.fn(), release: jest.fn(), removeListener: jest.fn(),
     addListener: jest.fn((_event: string, listener: (status: AudioStatus) => void) => {
       statusListener = listener;
       return { remove: (): void => { players.find(player => player.emit === emit)?.removeListener(); } };
@@ -23,6 +23,50 @@ function playerMock() {
   function emit(status: Partial<AudioStatus>) {
     statusListener({ playing: false, isBuffering: false, didJustFinish: false, error: null, ...status } as AudioStatus);
   }
+}
+
+// Installed Android AudioModule keeps a lifecycle registry independently from
+// shared playback resources: remove() unregisters, release() frees the player.
+// This causal fixture models that contract; it does not execute native code.
+function nativeRegistryFixture() {
+  const registered = new Set<ReturnType<typeof makePlayer>>();
+  function makePlayer() {
+    let released = false;
+    let listener: ((status: AudioStatus) => void) | undefined;
+    const player = {
+      isPaused: false,
+      play: jest.fn(() => { if (released) throw new Error("play sent to released native player"); }),
+      pause: jest.fn(),
+      remove: jest.fn(() => { registered.delete(player); }),
+      release: jest.fn(() => { released = true; }),
+      addListener: jest.fn((_event: string, next: (status: AudioStatus) => void) => {
+        listener = next;
+        return { remove: () => { listener = undefined; } };
+      }),
+      emit(status: Partial<AudioStatus>) {
+        listener?.({ playing: false, isBuffering: false, didJustFinish: false, error: null, ...status } as AudioStatus);
+      },
+    };
+    registered.add(player);
+    return player;
+  }
+  const player = makePlayer();
+  return {
+    player,
+    registered,
+    background() {
+      for (const item of registered) {
+        item.isPaused = true;
+        item.pause();
+        item.emit({ playing: false });
+      }
+    },
+    foreground() {
+      for (const item of registered) {
+        if (item.isPaused) { item.isPaused = false; item.play(); }
+      }
+    },
+  };
 }
 
 async function boot(enabled = true) {
@@ -84,6 +128,35 @@ describe("foreground audio hook with controlled Expo mocks", () => {
     const rest = updateSession(hook.active, { type: "complete-set", now: 250 }); await hook.update(rest, 250);
     act(() => { players[1]!.emit({ didJustFinish: true }); });
     expect(players[1]!.release).toHaveBeenCalledTimes(1);
+  });
+  it("does not let native foreground resume a player disposed after background pause", async () => {
+    const native = nativeRegistryFixture();
+    createPlayer.mockReturnValue(native.player as unknown as ReturnType<typeof createAudioPlayer>);
+    const hook = await boot(); await hook.update(hook.active);
+    act(() => { native.player.emit({ playing: true }); native.background(); });
+    expect(native.player.release).toHaveBeenCalledTimes(1);
+    expect(() => native.foreground()).not.toThrow();
+    expect(native.player.play).toHaveBeenCalledTimes(1);
+    expect(native.registered.size).toBe(0);
+  });
+  it("unregisters and releases even when cleanup pause fails", async () => {
+    const native = nativeRegistryFixture();
+    createPlayer.mockReturnValue(native.player as unknown as ReturnType<typeof createAudioPlayer>);
+    const hook = await boot(); await hook.update(hook.active);
+    native.player.pause.mockImplementation(() => { throw new Error("native pause unavailable"); });
+    act(() => native.player.emit({ didJustFinish: true }));
+    expect(hook.result.current.error?.code).toBe("cleanup");
+    expect(native.registered.size).toBe(0);
+    expect(native.player.release).toHaveBeenCalledTimes(1);
+  });
+  it("reports failed native unregistration and still releases playback resources", async () => {
+    const hook = await boot(); await hook.update(hook.active);
+    const failure = new Error("native registry unavailable");
+    players[0]!.remove.mockImplementation(() => { throw failure; });
+    act(() => players[0]!.emit({ didJustFinish: true }));
+    expect(hook.result.current.error).toEqual({ code: "cleanup", cause: failure });
+    expect(players[0]!.pause).toHaveBeenCalledTimes(1);
+    expect(players[0]!.release).toHaveBeenCalledTimes(1);
   });
   it("does not initialize native audio while muted", async () => {
     const hook = await boot(false); await hook.update(hook.active, 250, false);
