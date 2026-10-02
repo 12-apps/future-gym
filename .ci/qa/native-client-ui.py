@@ -30,6 +30,7 @@ paired = []
 audio_checks = []
 layout_checks = []
 font_checks = []
+host_checks = []
 viewport = (390, 844)
 
 
@@ -113,7 +114,64 @@ def find(value, by_id=False, scroll=False):
     raise RuntimeError("Expected control not visible: " + value)
 
 
+def ensure_sound_reachable():
+    """Move only Expo Go's supported draggable Tools host control when it overlaps."""
+    nodes = observe()
+    target = next((n for n in nodes if matches(n, "toggle-sound", True) and visible(n)), None)
+    if target is None:
+        raise RuntimeError("Sound control must be visible before host-overlay check")
+    tools_node = next((n for n in nodes if matches(n, "Tools") and visible(n)), None)
+    if tools_node is None:
+        return target
+    root = ET.parse(out / "current-client.xml").getroot()
+    parents = {child: parent for parent in root.iter() for child in parent}
+    tool = next(n for n in root.iter("node") if matches(n, "Tools") and visible(n))
+    # The accessible gear sits inside the actual clickable 52dp host container.
+    host = tool
+    while host in parents:
+        parent = parents[host]
+        if parent.tag != "node":
+            break
+        l, t, r, b = bounds(parent)
+        if r - l > 80 or b - t > 80:
+            break
+        host = parent
+    hl, ht, hr, hb = bounds(host)
+    il, it, ir, ib = bounds(tools_node)
+    tl, tt, tr, tb = bounds(target)
+    if not (hl < tr and hr > tl and ht < tb and hb > tt):
+        return target
+    index = len(host_checks) + 1
+    shot(f"host-tools-{index:02d}-before-drag")
+    x, y = (hl + hr) // 2, (ht + hb) // 2
+    destination_y = viewport[1] // 2
+    if tt - 60 <= destination_y <= tb + 60:
+        destination_y = viewport[1] * 3 // 4
+    # Expo SDK57 MovableFloatingActionButton supports a >40px drag and stores
+    # its normalized host position. No app UI/warning or host code is patched.
+    adb("shell", "input", "swipe", str(x), str(y), str(x), str(destination_y), "900")
+    time.sleep(0.5)
+    fresh = observe()
+    moved = next((n for n in fresh if matches(n, "Tools") and visible(n)), None)
+    target = next((n for n in fresh if matches(n, "toggle-sound", True) and visible(n)), None)
+    if moved is None or target is None:
+        raise RuntimeError("Host drag lost the Tools or sound control")
+    ml, mt, mr, mb = bounds(moved)
+    tl, tt, tr, tb = bounds(target)
+    # Preserve the measured padding of the real host around its accessible icon.
+    expanded = (ml - (il - hl), mt - (it - ht), mr + (hr - ir), mb + (hb - ib))
+    el, et, er, eb = expanded
+    if el < tr and er > tl and et < tb and eb > tt:
+        raise RuntimeError("Expo Tools still overlaps sound control after supported drag")
+    host_checks.append({"before": (hl, ht, hr, hb), "after": expanded, "target": bounds(target), "method": "supported Expo Go Tools drag"})
+    (out / "host-tools-result.json").write_text(json.dumps(host_checks, indent=2))
+    shot(f"host-tools-{index:02d}-after-drag")
+    return target
+
+
 def tap_node(node):
+    if matches(node, "toggle-sound", True):
+        node = ensure_sound_reachable()
     if node.attrib.get("enabled") == "false":
         raise RuntimeError("Refusing to tap disabled control: " + node.attrib.get("resource-id", ""))
     left, top, right, bottom = bounds(node)
@@ -203,6 +261,8 @@ def top(anchor):
     for _ in range(10):
         nodes = observe()
         if any(matches(n, anchor, True) and visible(n) and bounds(n)[3] - bounds(n)[1] >= 32 for n in nodes):
+            if anchor == "toggle-sound":
+                ensure_sound_reachable()
             return
         viewport_scroll(nodes, "up")
     raise RuntimeError("Screen header cannot be restored: " + anchor)
@@ -304,11 +364,16 @@ def large_font_ready_audit():
     record = {"original": original, "requested": "1.3", "viewport": viewport, "status": "running", "restored": False}
     font_checks.append(record)
     try:
+        # Android may recreate Expo Activity/ReactHost for font changes. The
+        # demo is intentionally in memory: configure while stopped, then launch
+        # and build a fresh workout through real controls.
+        stop_app()
         adb("shell", "settings", "put", "system", "font_scale", "1.3")
         if read_font_scale() != "1.3":
             raise RuntimeError("Android did not apply requested font_scale=1.3")
-        time.sleep(1)
-        find("gym-session", True)
+        cold_reopen()
+        start_workout("gym-a")
+        record["configuredBeforeFreshLaunch"] = True
         top("toggle-sound")
         assert_text("PRONTO")
         assert_footer("gym-session", "next-exercise")
@@ -345,6 +410,7 @@ def large_font_ready_audit():
         raise
     finally:
         try:
+            stop_app()
             record["restoredValue"] = restore_font_scale(original)
             record["restored"] = True
         except Exception as error:
@@ -353,8 +419,8 @@ def large_font_ready_audit():
             raise
         finally:
             (out / "font-scale-result.json").write_text(json.dumps(font_checks, indent=2))
-    time.sleep(1)
-    find("gym-session", True)
+    cold_reopen()
+    start_workout("gym-a")
     top("toggle-sound")
     assert_text("PRONTO")
 
@@ -535,7 +601,7 @@ def finalize_log_gate(directory):
     print(json.dumps(result), flush=True)
 
 
-def cold_reopen():
+def stop_app():
     adb("shell", "am", "force-stop", PACKAGE)
     for _ in range(30):
         process = subprocess.run(["adb", "shell", "pidof", PACKAGE], capture_output=True, timeout=10)
@@ -545,6 +611,10 @@ def cold_reopen():
     else:
         raise RuntimeError("Expo Go process did not stop for cold reopen")
     time.sleep(1)  # Android's old ActivityRecord can outlive the process briefly.
+
+
+def cold_reopen():
+    stop_app()
     print(adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "exp://127.0.0.1:8081", "-p", PACKAGE).decode(), flush=True)
     for _ in range(60):
         nodes = observe()
@@ -809,7 +879,7 @@ def run_audit():
     if {(item["state"], item["width"]) for item in paired} != expected or len(paired) != 20:
         raise RuntimeError("Incomplete original/native counterpart capture matrix")
     result = {"status": "ui-passed-awaiting-log-gate", "screenshots": len(shots), "captured_states": shots,
-              "counterparts": paired, "layoutChecks": layout_checks, "fontChecks": font_checks, "audioChecks": audio_checks,
+              "counterparts": paired, "layoutChecks": layout_checks, "fontChecks": font_checks, "audioChecks": audio_checks, "hostChecks": host_checks,
               "runtime": "Android API35 / Expo Go", "data": "sample, in-memory", "standalone": False,
               "iosDevice": False, "audibleOutputVerified": False,
               "audioLimit": "Headless emulator uses -no-audio; real Android playback-service evidence does not prove heard sound"}
@@ -827,7 +897,7 @@ if __name__ == "__main__":
         try:
             run_audit()
         except Exception as error:
-            failure = {"status": "failed", "error": str(error), "captured_states": shots, "counterparts": paired, "fontChecks": font_checks, "audioChecks": audio_checks}
+            failure = {"status": "failed", "error": str(error), "captured_states": shots, "counterparts": paired, "fontChecks": font_checks, "audioChecks": audio_checks, "hostChecks": host_checks}
             (out / "failure.json").write_text(json.dumps(failure, indent=2))
             (out / "result.json").write_text(json.dumps(failure, indent=2))
             raise

@@ -683,3 +683,23 @@ Seventeen local harness contracts and syntax checks pass; this run is pending.
 **Regression watch:** No weakened errors, no production identity, no real data.
 Restore the original emulator font scale and temporary runner KVM ACL even on
 failure. The headless audio assertion is service activity, never heard output.
+
+
+**Addendum (2026-10-02, font configuration lifecycle):** Run 36933459047
+failed after nine app captures because setting Android font scale recreated
+Expo Activity/ReactHost and cleared the intentionally in-memory demo. The driver
+incorrectly waited for the old workout screen after both setting and restoring
+the scale. Configure the disposable emulator while Expo is stopped, launch
+fresh, and start workout A through its actual controls for each scale. Preserve
+all font, input, bounds, screenshot, error and cleanup assertions. The harness
+contract now rejects a font mutation while running and verifies new workouts
+after both fresh launches; this is harness validation, not device proof.
+Application/configuration bytes still match consumer 667e514. Fresh runtime
+execution is required before acceptance.
+
+The prior phone capture also places Expo Go Tools over the sound target.
+The SDK57 host supports dragging that floating control (`expo-dev-menu`
+`MovableFloatingActionButton.kt`, drag threshold 40px and normalized position
+in `FabState.kt`). The driver detects actual hierarchy overlap, captures it,
+uses that supported drag, and requires fresh nonoverlapping bounds before
+tapping sound. No application warning or host code is suppressed or patched.

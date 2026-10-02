@@ -48,11 +48,40 @@ class NativeAuditContract(unittest.TestCase):
             ET.Element("node", {"package": audit.PACKAGE, "text": "Below viewport", "bounds": "[-20,900][450,950]"}),
         ], "scroll")
 
+    def test_host_tools_drag_uses_measured_container_and_checks_fresh_bounds(self):
+        for move in [False, True]:
+            with self.subTest(move=move), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
+                directory = Path(folder)
+                tree = ET.fromstring('<hierarchy><node bounds="[0,0][390,844]"><node resource-id="toggle-sound" bounds="[334,65][374,105]"/><node bounds="[322,65][374,117]"><node content-desc="Tools" bounds="[335,78][361,104]"/></node></node></hierarchy>')
+                host = list(tree[0])[1]
+                def observe():
+                    ET.ElementTree(tree).write(directory / "current-client.xml")
+                    return list(tree.iter("node"))
+                def drag(*args):
+                    self.assertEqual(args, ("shell", "input", "swipe", "348", "91", "348", "422", "900"))
+                    if move:
+                        host.set("bounds", "[322,396][374,448]")
+                        host[0].set("bounds", "[335,409][361,435]")
+                    return b""
+                stack.enter_context(patch.object(audit, "out", directory))
+                stack.enter_context(patch.object(audit, "viewport", (390, 844)))
+                stack.enter_context(patch.object(audit, "host_checks", []))
+                stack.enter_context(patch.object(audit, "observe", side_effect=observe))
+                stack.enter_context(patch.object(audit, "adb", side_effect=drag))
+                stack.enter_context(patch.object(audit, "shot"))
+                stack.enter_context(patch.object(audit.time, "sleep"))
+                if move:
+                    self.assertEqual(audit.ensure_sound_reachable().get("resource-id"), "toggle-sound")
+                    self.assertEqual(audit.host_checks[0]["after"], (322, 396, 374, 448))
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "still overlaps"):
+                        audit.ensure_sound_reachable()
+
     def test_font_scale_restores_exact_value_and_absent_setting(self):
         for original in ["1.0", "null"]:
             for fail_capture in [False, True]:
                 with self.subTest(original=original, fail_capture=fail_capture), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
-                    state = {"font": original, "mutations": []}
+                    state = {"font": original, "mutations": [], "running": True, "launches": [], "workouts": []}
                     def fake_adb(*args):
                         if args == ("get-serialno",):
                             return b"emulator-5554\n"
@@ -61,14 +90,28 @@ class NativeAuditContract(unittest.TestCase):
                         if args[:3] == ("shell", "settings", "get"):
                             return (state["font"] + "\n").encode()
                         if args[:3] == ("shell", "settings", "put"):
+                            self.assertFalse(state["running"], "Font must change while Expo is stopped")
                             state["font"] = args[-1]
                             state["mutations"].append(args)
                             return b""
                         if args[:3] == ("shell", "settings", "delete"):
+                            self.assertFalse(state["running"], "Font must restore while Expo is stopped")
                             state["font"] = "null"
                             state["mutations"].append(args)
                             return b""
                         raise AssertionError(args)
+                    def stop_app():
+                        state["running"] = False
+                    def cold_reopen():
+                        state["running"] = True
+                        state["launches"].append(state["font"])
+                    def start_workout(identity):
+                        self.assertTrue(state["running"])
+                        self.assertEqual(identity, "gym-a")
+                        state["workouts"].append(state["font"])
+                    stack.enter_context(patch.object(audit, "stop_app", side_effect=stop_app))
+                    stack.enter_context(patch.object(audit, "cold_reopen", side_effect=cold_reopen))
+                    stack.enter_context(patch.object(audit, "start_workout", side_effect=start_workout))
                     stack.enter_context(patch.object(audit, "adb", side_effect=fake_adb))
                     stack.enter_context(patch.object(audit, "out", Path(folder)))
                     stack.enter_context(patch.object(audit, "font_checks", []))
@@ -83,6 +126,8 @@ class NativeAuditContract(unittest.TestCase):
                             audit.large_font_ready_audit()
                     else:
                         audit.large_font_ready_audit()
+                    self.assertEqual(state["launches"], ["1.3"] if fail_capture else ["1.3", original])
+                    self.assertEqual(state["workouts"], state["launches"])
                     self.assertEqual(state["font"], original)
                     self.assertEqual(state["mutations"][0], ("shell", "settings", "put", "system", "font_scale", "1.3"))
                     self.assertEqual(state["mutations"][-1][2], "delete" if original == "null" else "put")
