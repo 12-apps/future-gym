@@ -7,8 +7,9 @@ Scope: [GYM-4](https://linear.app/12-apps/issue/GYM-4/build-the-tenant-scoped-na
 - Presents separate sample gym, two personal-training and physiotherapy spaces for one sample member.
 - Shows assigned workouts and exercise prescriptions without an editing surface.
 - Starts an independent active session for each space; navigation and provider switches retain its state.
-- Records completed sets and validated load/repetition values, with cancel and error paths.
+- Records completed sets and validated inline or routed load/repetition values, with cancel and error paths.
 - Runs wall-clock execution and rest timers, including pause/resume, extra rest and skip.
+- Offers optional foreground sound cues; mute and re-enable do not replay earlier events.
 - Saves a completed-set snapshot into the selected space's history or explicitly discards it.
 - Uses React Native components through the published `@12-apps/ui` native exports. It contains no HTML renderer or WebView.
 
@@ -24,11 +25,11 @@ Prescription editing and partner duels are intentionally deferred from this firs
 
 ## Timer semantics
 
-Deadlines use wall-clock timestamps rather than decrementing counters, so delayed foreground updates do not extend a timer accidentally. Pause saves the precise remaining milliseconds. Expired rest returns to ready. This first prototype has no background alarm, notification, audio or haptic service. Execution reaching zero does not mark any sets as performed: the person confirms completion. In particular, leaving the app in the background cannot manufacture repetitions, volume or training history. Manual completion/undo reconciles the exercise's pending set and clears a running timer.
+Deadlines use wall-clock timestamps rather than decrementing counters, so delayed foreground updates do not extend a timer accidentally. Pause saves the precise remaining milliseconds. Expired rest returns to ready. Optional audio cues run in the foreground; there is no background alarm, notification, audio or haptic service. The prototype requests no recording permission and disables background recording/playback. Execution reaching zero does not mark any sets as performed: the person confirms completion. In particular, leaving the app in the background cannot manufacture repetitions, volume or training history. Manual completion/undo reconciles the exercise's pending set and clears a running timer.
 
 Finishing stores detached copies of all set logs and counts only explicitly completed sets. Empty sessions cannot be saved. A stale action carries both tenant and session identity and is rejected after a tenant switch or a completed session. Repeated completion cannot duplicate history.
 
-Numeric editing uses a dedicated shared Screen route. That keeps keyboard avoidance and native Back/cancel behavior in the navigation/screen primitives instead of trying to lift input fields inside a separate Modal window.
+Numeric editing is available inline and through a dedicated shared Screen route. Both use the same whole-value validation. Main completion validates and commits the active set's draft; opening finish validates and commits the current exercise's rows, including values that have not blurred. An invalid active-set draft blocks completion; any invalid current-row draft blocks finish until corrected or canceled. The routed editor retains keyboard avoidance and native Back/cancel behavior in the navigation/screen primitives.
 
 ## Native dependency
 
@@ -261,3 +262,68 @@ retaining all required source, native, visual and CI gates.
 This bounded correction passed all 232 Android/iOS renderer cases across 22
 suites, with zero skipped cases, plus lint and type checks. Its actual native
 raster verification is still pending; the prior screenshots remain preserved.
+
+## Native audio cleanup correction — 2026-10-02
+
+Consumer e0f903f passed exact-head CI37051105814: 232 Android/iOS renderer
+cases across 22 suites, zero skipped, 46 root contracts, lint, types and build.
+Independent native raster review closed the series/target readability finding
+at normal and 1.3x font and accepted all 20 phone/wide reference counterparts.
+The owner-approved prototype theme remains unchanged.
+
+Audit37058465803 captured 53 states and passed all six playback probes,
+including current UID-owned active playback before HOME, inactivity afterward,
+and no new playback or automatic set completion on resume. Its late immediate
+Execution assertion failed, although the final image shows Execution after the
+same single Start input. The verification driver now awaits that exact phase
+through its existing bounded observation loop, without retapping.
+
+The complete native log exposed a separate audio integration defect: Expo's
+foreground callback tried to play an already released player. Android's
+expo-audio lifecycle registry retains a player until its public remove method
+is called; releasing the shared object alone destroys its playback resources
+without unregistering it. Cleanup now unregisters before releasing, while
+still attempting every cleanup step if another fails. A native AudioTrack
+timestamp warning also remains under investigation. The log rejection gate
+is unchanged. Fresh exact-source CI, the full native audit and independent
+final review are required before merge.
+
+The old cleanup failed all six new lifecycle/error-path executions across
+Android and iOS renderers. With unregistration, all 44 focused audio cases and
+the complete 238-case mobile suite pass (22 suites, zero skipped); lint and
+types also pass. These controlled native-registry mocks verify causality and
+cleanup failures, not device behavior. The fresh native run must still prove
+that the actual foreground warning is gone.
+
+## Short-cue status delivery correction (2026-10-02)
+
+Consumer `1522b78` passed exact CI37061921035 with 238 Android/iOS renderer
+cases and 46 root contracts. Native audit37065484095 reached 24 captured
+states, passed the initial active foreground/background/resume probe and
+fresh-launch 1.3x font checks, then refused a visible sound-unavailable alert.
+The first 100 ms countdown cue's native PLAYING observation arrived 763 ms
+after player initialization, while the hook's bounded lifetime was 600 ms.
+The failure image still showed an uncompleted series; it does not establish
+that the completion action caused the alert. The previous released-player
+foreground warning did not recur in the complete retained log.
+
+The hook previously treated a missing JavaScript playing event as proof the
+cue never started. Independent renderer reproduction verifies that a native
+player can already be playing or finished while that event is delayed. At the
+existing deadline, cleanup now checks the public native playing/currentTime
+properties before reporting non-start. Fresh players never seek, so a finite
+positive position proves progress. Zero/invalid progress, property-read
+failures and explicit native playback errors still surface. The cue lifetime,
+delayed-start cutoff, cancellation and unregistration remain unchanged.
+
+The independent causal fixture failed six executions before the correction;
+all 60 focused audio executions now pass. The complete local mobile suite
+passes 254 cases in 22 suites with zero skips, with lint and types also green.
+These tests model native progress independently from callback delivery; they
+do not replace the pending full real-runtime proof.
+
+The private virtual audio route was observed throughout that failed run, but
+623 Ranchu PCM write failures remain in its guest log; a connected host stream
+does not establish successful PCM delivery or audible output. Font, audio and
+display servers and temporary KVM permissions were restored. Exact-source CI,
+the complete fresh native run and independent final acceptance remain open.

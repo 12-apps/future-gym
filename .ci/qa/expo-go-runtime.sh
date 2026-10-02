@@ -8,8 +8,8 @@ git rev-parse HEAD > "$OUT/source-sha.txt"
 git status --porcelain > "$OUT/source-working-tree.txt"
 pnpm --dir apps/mobile list --depth 0 --json > "$OUT/installed-native-dependencies.json"
 # Verify the exact reviewed application/configuration trees, not a nearby branch.
-printf '%s\n' '1522b781fa2a1ca452f62a15c0e2eab3f29e99e6' > "$OUT/consumer-source-sha.txt"
-test "$(git rev-parse HEAD:apps/mobile)" = 519547a5ba4e97b8a0b01ae1f96cb59a903cfc43
+printf '%s\n' '90dca828e614a861d664fbd17ef40eccb1efd2ec' > "$OUT/consumer-source-sha.txt"
+test "$(git rev-parse HEAD:apps/mobile)" = 1a83aba7d65960fc00b44754772eb9321c618f27
 test "$(git rev-parse HEAD:pnpm-lock.yaml)" = d67da91050333556feb29efd202060c39b8577dd
 test "$(git rev-parse HEAD:package.json)" = 8cabe285ed5dd4aa5a9857b01d242b1de56a0cc4
 test "$(git rev-parse HEAD:turbo.json)" = 97e7679ecd7862623b6016e0cf964e0e11b51945
@@ -252,6 +252,74 @@ stop_host_audio() {
   test "$stopped" = 1 && test "$monitor_ok" = 1 && { test "$pulse_exit" = 0 || test "$pulse_exit" = 143; }
 }
 # HOST_AUDIO_FUNCTIONS_END
+# EMULATOR_CLEANUP_FUNCTIONS_BEGIN
+collect_audio_device_diagnostics() {
+  # Read-only failure evidence. A denied/missing diagnostic is recorded, never
+  # represented as a successful PCM write or as a replacement for the log gate.
+  python3 - "$OUT" <<'AUDIO_DEVICE_DIAGNOSTICS'
+import datetime, json, subprocess, sys
+from pathlib import Path
+directory = Path(sys.argv[1])
+commands = {
+    "alsa": ["adb", "shell", "failure=0; for file in /proc/asound/cards /proc/asound/pcm /proc/asound/card*/pcm*/sub*/status /proc/asound/card*/pcm*/sub*/hw_params /proc/asound/card*/pcm*/sub*/sw_params; do if test -r \"$file\"; then echo \"FILE:$file\"; cat \"$file\" || failure=1; fi; done; exit \"$failure\""],
+    "kernel": ["adb", "shell", "dmesg"],
+    "audio-flinger": ["adb", "shell", "dumpsys", "media.audio_flinger"],
+    "audio-policy": ["adb", "shell", "dumpsys", "media.audio_policy"],
+    "audio-service": ["adb", "shell", "dumpsys", "audio"],
+}
+records = []
+for name, command in commands.items():
+    try:
+        result = subprocess.run(command, capture_output=True, timeout=10)
+        code, stdout, stderr = result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired as error:
+        code, stdout, stderr = 124, error.stdout or b"", error.stderr or b""
+    except OSError as error:
+        code, stdout, stderr = 127, b"", str(error).encode()
+    (directory / f"audio-device-{name}.txt").write_bytes(stdout)
+    (directory / f"audio-device-{name}-stderr.txt").write_bytes(stderr)
+    status = "captured" if code == 0 and stdout.strip() and not stderr.strip() else "partial" if stdout.strip() else "unavailable"
+    records.append({"name": name, "exitCode": code, "bytes": len(stdout), "status": status})
+(directory / "audio-device-diagnostics.json").write_text(json.dumps({"purpose": "diagnostic-only",
+    "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(), "commands": records}, indent=2))
+AUDIO_DEVICE_DIAGNOSTICS
+}
+stop_emulator() {
+  if test -z "${EMULATOR_PID:-}"; then return 0; fi
+  local graceful=0 forced=none emulator_exit=0 request_exit=0
+  timeout 10 adb emu kill > "$OUT/emulator-shutdown-request.txt" 2>&1 || request_exit=$?
+  # adb acknowledges shutdown before the Qt engine has exited. Keep its display
+  # and audio dependencies alive until the actual child has exited and is reaped.
+  for _ in $(seq 1 300); do
+    if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then graceful=1; break; fi
+    sleep 0.1
+  done
+  if test "$graceful" = 0; then
+    forced=TERM
+    kill -TERM "$EMULATOR_PID" 2>/dev/null || true
+    for _ in $(seq 1 50); do
+      if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then break; fi
+      sleep 0.1
+    done
+    if kill -0 "$EMULATOR_PID" 2>/dev/null; then
+      forced=KILL
+      kill -KILL "$EMULATOR_PID" 2>/dev/null || true
+    fi
+  fi
+  if wait "$EMULATOR_PID"; then emulator_exit=0; else emulator_exit=$?; fi
+  python3 - "$OUT" "$EMULATOR_PID" "$graceful" "$forced" "$emulator_exit" "$request_exit" <<'EMULATOR_CLEANUP_RECORD'
+import json, sys
+from pathlib import Path
+directory, pid, graceful, forced, exit_code, request_exit = sys.argv[1:]
+record = {"pid": int(pid), "graceful": graceful == "1", "forcedSignal": forced,
+          "exitCode": int(exit_code), "requestExitCode": int(request_exit), "reaped": True}
+record["status"] = "passed" if record["graceful"] and record["exitCode"] in [0, 143] else "failed"
+(Path(directory) / "emulator-cleanup.json").write_text(json.dumps(record, indent=2))
+if record["status"] != "passed":
+    raise SystemExit("Emulator required forced shutdown or exited unexpectedly")
+EMULATOR_CLEANUP_RECORD
+}
+# EMULATOR_CLEANUP_FUNCTIONS_END
 # LOG_COLLECTION_FUNCTIONS_BEGIN
 wait_log_marker() {
   local marker="$1"
@@ -372,14 +440,25 @@ RESTORE_FAILURE
     fi
   fi
   if timeout 5 adb get-state >/dev/null 2>&1; then
+    collect_audio_device_diagnostics || exit_status=1
     collect_cleanup_log_diagnostic
     timeout 15 adb shell uiautomator dump /sdcard/final.xml > /dev/null 2>&1 || true
     timeout 15 adb pull /sdcard/final.xml "$OUT/final.xml" > /dev/null 2>&1 || true
     timeout 15 adb exec-out screencap -p > "$OUT/final.png" 2>/dev/null || true
     stop_host_audio_monitor || exit_status=1
-    timeout 10 adb emu kill > /dev/null 2>&1 || true
   fi
   test -z "${METRO_PID:-}" || kill "$METRO_PID" 2>/dev/null || true
+  if ! stop_emulator; then
+    exit_status=1
+    python3 - "$OUT/result.json" <<'EMULATOR_CLEANUP_FAILURE'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+result = json.loads(path.read_text()) if path.exists() else {}
+result.update(status="failed-emulator-cleanup", emulatorCleanupError="Actual emulator process did not exit normally before host teardown")
+path.write_text(json.dumps(result, indent=2))
+EMULATOR_CLEANUP_FAILURE
+  fi
   if test -n "${HOST_AUDIO_STARTED:-}"; then
     if ! stop_host_audio; then
       echo 'Private host audio server did not complete its bounded cleanup'

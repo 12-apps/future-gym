@@ -928,3 +928,29 @@ preflight and monitoring. The unnormalized parser fails on the real retained
 JSON; the normalized parser passes, without changing the source artifacts.
 Independent review approved this identifier-only correction. Together with the
 unchanged driver/collector suites, 41 harness contracts pass.
+
+**Addendum (2026-10-02, delayed short-cue status and actual engine cleanup):**
+Run37065484095 consumed exact1522b78 and failed at24 states with a visible
+sound-unavailable alert during execution, before valid-set completion. Initial
+active playback/background/resume and fresh-launch1.3 font checks passed.
+The full17,644,911-byte log has no repeated released-player foreground warning,
+but623 guest PCM write failures remain despite1,486 stable private host route
+observations. These are distinct observations; host connection does not prove
+PCM delivery or heard sound. No warning/output filter is changed.
+
+Independent causal renderer tests demonstrate a detector defect: a100ms cue can
+have native progress before its asynchronous playing event reaches JavaScript,
+causing a false non-start error at the600ms deadline. Consumer90dca82 checks
+supported native playing/currentTime at that same deadline; no extension or
+replay. The old detector fails six executions; corrected audio60/60 and full
+mobile254/254 pass with zero skips. Fresh actual native closure is still open.
+
+The next audit guards the exact new consumer/mobile tree. Its failure evidence
+also collects read-only ALSA/kernel/audio-service diagnostics with individual
+availability statuses. Cleanup waits/reaps the actual emulator PID before
+stopping Pulse/Xvfb. A forced TERM/KILL fallback is recorded and fails the
+cleanup result while still releasing dependencies. Three real-child contracts
+cover four scenarios, including denied diagnostics. Independent review and
+the root's fresh cleanup test pass. Both previous private servers and KVM
+restoration passed; the old emulator XIO line occurred during dependency teardown
+and is not silently reclassified as clean exit. Real complete audit pending.

@@ -135,7 +135,19 @@ export function useWorkoutAudio(session: WorkoutSession | null | undefined, now:
         });
         playing.timer = setTimeout(() => {
           if (active.current !== playing) return;
-          if (!started) report("playback", new Error("The workout cue did not start before its deadline"));
+          if (!started) {
+            try {
+              // A short cue can finish before its status event reaches JavaScript.
+              // Fresh players never seek, so native progress proves it did start.
+              const playingNow = player.playing;
+              const position = player.currentTime;
+              if (!playingNow && !(Number.isFinite(position) && position > 0)) {
+                report("playback", new Error("The workout cue did not start before its deadline"));
+              }
+            } catch (cause) {
+              report("playback", cause);
+            }
+          }
           stop();
         }, Math.max(0, expiresAt - Date.now()));
         player.play();

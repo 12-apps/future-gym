@@ -13,6 +13,7 @@ const players: ReturnType<typeof playerMock>[] = [];
 function playerMock() {
   let statusListener: (status: AudioStatus) => void = () => undefined;
   return {
+    playing: false, currentTime: 0,
     play: jest.fn(), pause: jest.fn(), remove: jest.fn(), release: jest.fn(), removeListener: jest.fn(),
     addListener: jest.fn((_event: string, listener: (status: AudioStatus) => void) => {
       statusListener = listener;
@@ -194,6 +195,61 @@ describe("foreground audio hook with controlled Expo mocks", () => {
     const hook = await boot(); await hook.update(hook.active);
     act(() => { jest.advanceTimersByTime(1500); });
     expect(hook.result.current.error?.code).toBe("playback"); expect(players[0]!.release).toHaveBeenCalledTimes(1);
+  });
+  // Native playback and JS event delivery have separate clocks. A 100ms tick
+  // can finish before its status event reaches JS; public getters still expose
+  // its actual position. This fixture models that ordering, not audible output.
+  async function countdownTick() {
+    const active = updateSession(initial(), { type: "start-set", now: 0 });
+    const deadline = active.deadline!;
+    const hook = renderHook(({ now }: { now: number }) => useWorkoutAudio(active, now, true),
+      { initialProps: { now: deadline - 3250 } });
+    await act(async () => { await Promise.resolve(); });
+    jest.setSystemTime(250);
+    await act(async () => { hook.rerender({ now: deadline - 3000 }); });
+    expect(createPlayer).toHaveBeenCalledTimes(1);
+    return { hook, player: players[0]! };
+  }
+  it.each([
+    { label: "completed", playing: false, currentTime: 0.1 },
+    { label: "active", playing: true, currentTime: 0 },
+  ])("recognizes $label native playback when the tick status event misses its deadline", async (native) => {
+    const { hook, player } = await countdownTick();
+    player.playing = native.playing; player.currentTime = native.currentTime;
+    act(() => { jest.advanceTimersByTime(599); });
+    expect(player.release).not.toHaveBeenCalled();
+    act(() => { jest.advanceTimersByTime(1); });
+    expect(hook.result.current.error).toBeNull();
+    expect(player.pause).toHaveBeenCalledTimes(1);
+    expect(player.remove).toHaveBeenCalledTimes(1);
+    expect(player.release).toHaveBeenCalledTimes(1);
+    act(() => { player.emit({ playing: true }); jest.advanceTimersByTime(1000); });
+    expect(player.play).toHaveBeenCalledTimes(1);
+    expect(player.release).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.error).toBeNull();
+  });
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("still rejects a silent tick with native position %s at its deadline", async (position) => {
+    const { hook, player } = await countdownTick();
+    player.currentTime = position;
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(hook.result.current.error?.code).toBe("playback");
+    expect(player.release).toHaveBeenCalledTimes(1);
+  });
+  it("reports a native deadline status-read failure and still releases the tick", async () => {
+    const { hook, player } = await countdownTick();
+    const failure = new Error("Native playback position unavailable");
+    Object.defineProperty(player, "currentTime", { get() { throw failure; } });
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(hook.result.current.error).toEqual({ code: "playback", cause: failure });
+    expect(player.remove).toHaveBeenCalledTimes(1);
+    expect(player.release).toHaveBeenCalledTimes(1);
+  });
+  it("preserves an explicit native error even after the tick made progress", async () => {
+    const { hook, player } = await countdownTick();
+    player.currentTime = 0.05;
+    act(() => { player.emit({ error: "Native tick decode failed" }); jest.advanceTimersByTime(600); });
+    expect(hook.result.current.error).toEqual({ code: "playback", cause: "Native tick decode failed" });
+    expect(player.release).toHaveBeenCalledTimes(1);
   });
   it.each(["late", "mute", "unmount"])("does not play a queued cue after %s while configuration is pending", async (reason) => {
     let resolveMode: (() => void) | undefined;
