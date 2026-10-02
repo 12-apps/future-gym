@@ -763,3 +763,24 @@ output, require exactly the installed Expo Go package and a unique application
 UID, and retain both raw package outputs. Never infer ownership from a player
 event alone. The exact-package/ambiguity contract passes with all21 harness
 contracts. Source: https://android.googlesource.com/platform/frameworks/base/+/master/services/core/java/com/android/server/pm/PackageManagerShellCommand.java
+
+**Addendum (2026-10-02, exact native tap target and complete target labels):**
+Audit 36966349124 reached 38 states and 16 of 20 paired images; all five reached
+UID-attributed audio probes matched their expected playback events. It then
+returned home while the driver intended Continue-training. The preserved
+finish-dialog hierarchy proves that Continue and Discard share the generic
+resource-id `button`: tap_node discarded its original label and reselected the
+first generic button, generating a tap at (195,696) on Discard rather than
+(195,752) on Continue. Preserve the original ID, exact label and native class
+across fresh observations and supported Tools repositioning; refuse missing or
+ambiguous matches before tapping. The real sample dialog subtree is a fixture.
+All 24 harness contracts pass; the old driver fails four new safety cases.
+
+The same audit's independent pixel review found normal-font `meta 10` painting
+only `meta` after the row-header correction. Consumer e0f903fb448959ccdcff2d6452f357b9c5b17fe8
+reserves a non-shrinking token-sized minimum target width with existing shared
+Box/Text and keeps one complete text value. Its 232 Android/iOS cases, lint and
+types passed locally. Exact app tree e2b1a08c13ce20d1e630210bf87ab568d5ebb44f is
+required by this audit. Fresh normal/1.3x pixels, all 20 paired states, both
+personal histories and lifecycle checks remain required. The owner explicitly
+resumed the repair; no previous machine pass substitutes for those gates.

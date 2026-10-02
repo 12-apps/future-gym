@@ -114,12 +114,18 @@ def find(value, by_id=False, scroll=False):
     raise RuntimeError("Expected control not visible: " + value)
 
 
-def ensure_control_reachable(value="toggle-sound", by_id=True):
+def ensure_control_reachable(value="toggle-sound", by_id=True, *, label=None, node_class=None):
     """Move only Expo Go's supported draggable Tools host control when it overlaps."""
+    def select_target(observed):
+        candidates = [n for n in observed if matches(n, value, by_id) and visible(n)
+                      and (label is None or matches(n, label))
+                      and (node_class is None or n.attrib.get("class") == node_class)]
+        if len(candidates) != 1:
+            raise RuntimeError(f"Expected one visible target control for {value!r}/{label!r}, found {len(candidates)}")
+        return candidates[0]
+
     nodes = observe()
-    target = next((n for n in nodes if matches(n, value, by_id) and visible(n)), None)
-    if target is None:
-        raise RuntimeError("Target control must be visible before host-overlay check")
+    target = select_target(nodes)
     tools_node = next((n for n in nodes if matches(n, "Tools") and visible(n)), None)
     if tools_node is None:
         return target
@@ -153,8 +159,8 @@ def ensure_control_reachable(value="toggle-sound", by_id=True):
     time.sleep(0.5)
     fresh = observe()
     moved = next((n for n in fresh if matches(n, "Tools") and visible(n)), None)
-    target = next((n for n in fresh if matches(n, value, by_id) and visible(n)), None)
-    if moved is None or target is None:
+    target = select_target(fresh)
+    if moved is None:
         raise RuntimeError("Host drag lost the Tools or target control")
     ml, mt, mr, mb = bounds(moved)
     tl, tt, tr, tb = bounds(target)
@@ -173,7 +179,11 @@ def tap_node(node):
     identity = node.attrib.get("resource-id")
     label = node.attrib.get("content-desc") or node.attrib.get("text")
     if identity or label:
-        node = ensure_control_reachable(identity or label, bool(identity))
+        # Shared components may expose the same generic resource-id ("button").
+        # Keep the observed label/class as well as the ID across fresh dumps,
+        # including after moving Tools; never turn Continue into Discard.
+        node = ensure_control_reachable(identity or label, bool(identity),
+                                        label=label or None, node_class=node.attrib.get("class"))
     if node.attrib.get("enabled") == "false":
         raise RuntimeError("Refusing to tap disabled control: " + node.attrib.get("resource-id", ""))
     left, top, right, bottom = bounds(node)

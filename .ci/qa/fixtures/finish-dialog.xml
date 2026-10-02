@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<hierarchy>
+  <!--Exact finish-dialog subtree from run 36966349124, native-08-partial-finish-390.xml; sample data only.-->
+  <node index="2" text="" resource-id="finish-dialog" class="android.view.ViewGroup" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[16,480][374,796]">
+    <node index="0" text="" resource-id="finish-dialog-title" class="android.view.ViewGroup" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[16,480][374,544]" />
+    <node index="1" text="Encerrar treino?" resource-id="" class="android.view.View" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[40,496][184,528]" />
+    <node index="2" text="" resource-id="dialog-content" class="android.widget.ScrollView" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="true" long-clickable="false" password="false" selected="false" bounds="[16,544][374,796]">
+      <node index="0" text="" resource-id="" class="android.view.ViewGroup" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[16,544][374,796]">
+        <node index="0" text="Você já fez 1 série. Salve para registrar as cargas no histórico." resource-id="" class="android.widget.TextView" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[40,556][350,604]" />
+        <node index="1" text="" resource-id="save-finish" class="android.widget.Button" package="host.exp.exponent" content-desc="Salvar e encerrar" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[40,620][350,660]">
+          <node index="0" text="Salvar e encerrar" resource-id="" class="android.widget.TextView" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[134,626][255,654]" />
+        </node>
+        <node index="2" text="" resource-id="button" class="android.widget.Button" package="host.exp.exponent" content-desc="Descartar treino" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[40,676][350,716]">
+          <node index="0" text="Descartar treino" resource-id="" class="android.widget.TextView" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[137,682][253,710]" />
+        </node>
+        <node index="3" text="" resource-id="button" class="android.widget.Button" package="host.exp.exponent" content-desc="Continuar treinando" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[40,732][350,772]">
+          <node index="0" text="Continuar treinando" resource-id="" class="android.widget.TextView" package="host.exp.exponent" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[124,738][266,766]" />
+        </node>
+      </node>
+    </node>
+  </node>
+</hierarchy>

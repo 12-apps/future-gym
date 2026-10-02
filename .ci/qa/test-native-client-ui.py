@@ -53,6 +53,56 @@ class NativeAuditContract(unittest.TestCase):
             ET.Element("node", {"package": audit.PACKAGE, "text": "Below viewport", "bounds": "[-20,900][450,950]"}),
         ], "scroll")
 
+    def test_finish_fixture_preserves_continue_discard_and_save_targets_after_refresh(self):
+        fixture = Path(__file__).with_name("fixtures") / "finish-dialog.xml"
+        for label, y in [("Continuar treinando", "752"), ("Descartar treino", "696"), ("Salvar e encerrar", "640")]:
+            for overlay in [False, True]:
+                with self.subTest(label=label, overlay=overlay), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
+                    tree = ET.parse(fixture).getroot()
+                    intended = next(n for n in tree.iter("node") if n.get("content-desc") == label and n.get("clickable") == "true")
+                    # Real dialog labels have TextView children with the same text;
+                    # Continue and Discard also share resource-id="button".
+                    if overlay:
+                        top = int(y) - 26
+                        host = ET.SubElement(tree, "node", {"bounds": f"[322,{top}][374,{top + 52}]"})
+                        ET.SubElement(host, "node", {"content-desc": "Tools", "bounds": f"[335,{top + 13}][361,{top + 39}]"})
+                    directory = Path(folder)
+                    def observe():
+                        ET.ElementTree(tree).write(directory / "current-client.xml")
+                        return list(tree.iter("node"))
+                    commands = []
+                    def adb(*args):
+                        commands.append(args)
+                        if args[:3] == ("shell", "input", "swipe"):
+                            host.set("bounds", "[322,396][374,448]")
+                            host[0].set("bounds", "[335,409][361,435]")
+                        return b""
+                    stack.enter_context(patch.object(audit, "out", directory))
+                    stack.enter_context(patch.object(audit, "viewport", (390, 844)))
+                    stack.enter_context(patch.object(audit, "host_checks", []))
+                    stack.enter_context(patch.object(audit, "observe", side_effect=observe))
+                    stack.enter_context(patch.object(audit, "adb", side_effect=adb))
+                    stack.enter_context(patch.object(audit, "shot"))
+                    stack.enter_context(patch.object(audit.time, "sleep"))
+                    audit.tap_node(intended)
+                    self.assertEqual(commands[-1], ("shell", "input", "tap", "195", y))
+                    self.assertEqual(sum(command[2] == "swipe" for command in commands), int(overlay))
+
+    def test_explicit_ids_disambiguate_controls_with_the_same_label(self):
+        tree = ET.fromstring('<hierarchy><node resource-id="save-first" class="android.widget.Button" content-desc="Salvar" enabled="true" bounds="[40,400][350,440]"/><node resource-id="save-second" class="android.widget.Button" content-desc="Salvar" enabled="true" bounds="[40,500][350,540]"/></hierarchy>')
+        with patch.object(audit, "observe", return_value=list(tree.iter("node"))), patch.object(audit, "adb", return_value=b"") as adb, patch.object(audit.time, "sleep"):
+            audit.tap_node(tree[1])
+            adb.assert_called_once_with("shell", "input", "tap", "195", "520")
+
+    def test_ambiguous_or_missing_exact_target_never_taps_another_control(self):
+        original = ET.fromstring('<node resource-id="button" class="android.widget.Button" content-desc="Continuar treinando" enabled="true" bounds="[40,732][350,772]"/>')
+        other = ET.fromstring('<node resource-id="button" class="android.widget.Button" content-desc="Descartar treino" enabled="true" bounds="[40,676][350,716]"/>')
+        for observed in [[other], [original, ET.fromstring(ET.tostring(original))]]:
+            with self.subTest(count=len(observed)), patch.object(audit, "observe", return_value=observed), patch.object(audit, "adb") as adb:
+                with self.assertRaisesRegex(RuntimeError, "Expected one visible target"):
+                    audit.tap_node(original)
+                adb.assert_not_called()
+
     def test_host_tools_drag_uses_measured_container_and_checks_fresh_bounds(self):
         for move in [False, True]:
             with self.subTest(move=move), tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
