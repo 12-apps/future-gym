@@ -239,3 +239,12 @@ Corrected-tree verification: 232 real Android/iOS renderer cases passed across
 verification passed all 12 new action/draft and recovery executions. The earlier
 46 root contracts also passed. These local results await remote exact-head CI
 and a new native audit of the changed application tree.
+
+
+The independent native screenshot review found that the newly added single-line
+set layout compressed its identity: normal-font labels overlapped the reps
+label, and at1.3x all set numbers were ellipsized. Each row now places checkbox,
+set identity and target in a clear header, with the same inline fields and step
+controls below. This uses existing shared Stack/Box/Input/Button primitives and
+tokens, without changing the accepted prototype theme. The visual readability
+fix requires fresh source checks and native captures at both font settings.
