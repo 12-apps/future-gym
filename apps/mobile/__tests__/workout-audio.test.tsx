@@ -180,6 +180,30 @@ describe("foreground audio hook with controlled Expo mocks", () => {
     expect(hook.result.current.error).toEqual({ code: "playback", cause: "Asset decode failed" });
     expect(players[0]!.release).toHaveBeenCalledTimes(1);
   });
+  it("omits production diagnostics while preserving actual audio failures and cleanup", async () => {
+    const developmentGlobals = globalThis as typeof globalThis & { __DEV__: boolean };
+    const previousDevelopment = __DEV__;
+    const info = jest.spyOn(console, "info").mockImplementation(() => undefined);
+    const warning = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    developmentGlobals.__DEV__ = false;
+    try {
+      const hook = await boot(); await hook.update(hook.active);
+      const cause = "Native playback failed after starting";
+      act(() => { players[0]!.emit({ playing: true }); players[0]!.emit({ error: cause }); });
+      expect(players[0]!.play).toHaveBeenCalledTimes(1);
+      expect(info).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledTimes(1);
+      expect(warning).toHaveBeenCalledWith("Workout audio playback failed", cause);
+      expect(hook.result.current.error).toEqual({ code: "playback", cause });
+      expect(players[0]!.pause).toHaveBeenCalledTimes(1);
+      expect(players[0]!.remove).toHaveBeenCalledTimes(1);
+      expect(players[0]!.release).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    } finally {
+      developmentGlobals.__DEV__ = previousDevelopment;
+      info.mockRestore(); warning.mockRestore();
+    }
+  });
   it("surfaces playback invocation and cleanup failures without skipping release", async () => {
     const hook = await boot();
     createPlayer.mockImplementationOnce(() => {

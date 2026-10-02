@@ -327,3 +327,32 @@ The private virtual audio route was observed throughout that failed run, but
 does not establish successful PCM delivery or audible output. Font, audio and
 display servers and temporary KVM permissions were restored. Exact-source CI,
 the complete fresh native run and independent final acceptance remain open.
+
+## Current cancellation diagnostics (2026-10-02)
+
+Consumer90dca82 passed exact CI37067891784: 254 actual platform cases, 22
+suites, zero skips, 46 root contracts, lint, types and build. Native
+audit37068097713 stopped at its initial live audio observation: 78 snapshots
+in4.025 seconds did not capture an active app-owned player. Native events show
+one64ms started-to-paused interval, already historical in the first snapshot
+that contains it. The screen entered execution without a sound-unavailable
+alert. Historical playback does not satisfy active-before-HOME acceptance.
+
+Independent scratch diagnostics reproduce two possible early-stop paths:
+screen-clock catch-up can cancel a recently created cue, and synchronous native
+preparation can consume its request-relative lifetime. The retained native log
+does not distinguish those paths. Development-only informational diagnostics
+now record cue creation, status and stop reason/times without person, tenant or
+session identifiers. Actual error code/cause is also logged while preserving
+the user-facing error. Playback policy, lifetime and cancellation are unchanged;
+this is instrumentation for the next exact-source run, not claimed closure.
+
+The production-mode guard and error/cleanup preservation pass in 62 focused
+audio executions. The complete local suite passes 256 cases in 22 suites,
+zero skipped. Informational cue diagnostics are absent outside development;
+real failures retain their warning, cause and visible error.
+
+The corrected harness waited/reaped the actual emulator with exit0 before
+stopping Pulse/Xvfb; no previous teardown XIO line recurred, and KVM restoration
+passed. Device service diagnostics were captured; restricted ALSA/kernel reads
+are honestly unavailable. Full native acceptance remains required.
