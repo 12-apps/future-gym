@@ -32,11 +32,11 @@ Numeric editing uses a dedicated shared Screen route. That keeps keyboard avoida
 
 ## Native dependency
 
-Every screen requires the shared `@12-apps/ui/layout/Screen` export for safe area, scroll and keyboard handling. The app pins the published `@12-apps/ui` version `6.56.0`, which includes Screen and the native Home, FitnessCenter and History icons. The app has no fallback implementation and never imports raw `react-native` components or types.
+Every screen requires the shared `@12-apps/ui/layout/Screen` export for safe area, scroll and keyboard handling. The app pins the published `@12-apps/ui` version `6.57.0`, including Screen, native navigation/sound icons, circular progress center content and bottom-sheet dialogs. The app has no fallback implementation and never imports raw `react-native` components or types.
 
 ## Verification record
 
-All results below use the published [UI 6.56.0 release](https://github.com/12-apps/shared-packages/releases/tag/ui-v6.56.0).
+The initial results in this section use the published [UI 6.56.0 release](https://github.com/12-apps/shared-packages/releases/tag/ui-v6.56.0).
 Both prior dependency trees were removed before a frozen-lockfile registry install.
 The installed version and lockfile integrity were checked against the actual
 registry tarball (`sha512-uFDhi8ujqAxE4veUKqKj72ab7GVXqG9ZUgJa4+XIYOnUXKrn5GHUi4rVsoVGSpKnez98XDEL5L2QHNgjTCk2pw==`).
@@ -206,3 +206,36 @@ requires all ten counterpart states at 390/1280, inline/routed error and cancel
 paths, large-font/keyboard controls, both personal-provider histories, empty
 save/discard/restart, cold reopen and UID-attributed native playback events.
 Headless service evidence will not be called audible-output proof.
+
+
+## Final control-action correction — 2026-10-02
+
+Exact consumer head 667e514 passed CI 36933184873 with 220 Android/iOS renderer
+cases, 46 root contracts, lint, types and Android export. The subsequent
+independent control review reproduced an introduced boundary defect: entering
+`40kg` inline and pressing the main Complete-set button completed the set with
+its previous recorded load while the invalid draft remained visible. Both
+Android and iOS renderer reproductions failed before the fix.
+
+The main action now validates and commits its active row's actual draft before
+completing the set, even when the native input has not blurred. Requesting the
+finish sheet validates and commits all current rows before displaying its
+summary; an invalid completed-row draft remains editable and cannot silently be
+omitted from the saved snapshot. Cancel or correction recovers the normal flow.
+The regression suite covers invalid load/repetitions, valid focused decimals,
+completion volume, finish validation and recovery. Fresh exact-head CI and native
+execution are required; the previous 220-case result is not their acceptance.
+
+Runtime audit 36933459047 failed because the driver expected an in-memory workout
+to survive Android font-scale Activity recreation. That test assumption was
+corrected on the existing verification-only branch: stop Expo, configure font,
+launch fresh, and start a workout using real controls; repeat after restoring
+the original setting. The host's supported Tools drag is verified from fresh
+bounds before sound is tapped. Audit 36964248201 exercises those harness fixes
+on the older 667e514 application bytes and cannot accept this later app fix.
+
+Corrected-tree verification: 232 real Android/iOS renderer cases passed across
+22 suites, zero skipped, in 32.824s; lint and types passed. Independent focused
+verification passed all 12 new action/draft and recovery executions. The earlier
+46 root contracts also passed. These local results await remote exact-head CI
+and a new native audit of the changed application tree.
